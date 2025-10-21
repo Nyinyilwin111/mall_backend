@@ -1,29 +1,47 @@
 package com.spring.Entity;
 
+
 import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.UuidGenerator;
+import lombok.Data;
 
-import java.util.Objects;
-import java.util.UUID;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@ToString(exclude = "password")  //exclude password from toString() to avoid leaking sensitive data.
-@EqualsAndHashCode(of = "email")  //The same email → same hash → consistent behavior in sets/maps.
-@Entity(name = "APP_USER")
+import java.util.HashSet;
+import java.util.Set;
+@Data
+@Entity
+@Table(name = "users")
 public class User {
     @Id
-    @GeneratedValue
-    @UuidGenerator
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @Column(unique = true)
-    private String email;
+    @Column(unique = true, nullable = false)
+    private String username;
+
+    @Column(nullable = false)
     private String password;
-    private String fullName;
-}
 
+    @Column(nullable = false)
+    private String email;
+
+    private boolean enabled = true; // Make sure this exists and defaults to true
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    private Set<Role> roles = new HashSet<>();
+
+    // Constructors, getters, setters
+    public User() {}
+
+    public User(String username, String password, String email) {
+        this.username = username;
+        this.password = password;
+        this.email = email;
+        this.enabled = true;
+    }
+
+
+}

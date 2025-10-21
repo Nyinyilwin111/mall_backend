@@ -1,12 +1,6 @@
 package com.spring.mall.serviceTests;
 
-import com.spring.Config.JwtConstants;
-import com.spring.Controller.AuthController;
-import com.spring.DTO.request.LoginRequestDTO;
-import com.spring.DTO.request.UpdateUserRequestDTO;
-import com.spring.DTO.response.LoginResponseDTO;
 import com.spring.Entity.User;
-import com.spring.Exceptions.UserException;
 import com.spring.Services.UserService;
 import com.spring.mall.AbstractIntegrationTest;
 import io.jsonwebtoken.ExpiredJwtException;

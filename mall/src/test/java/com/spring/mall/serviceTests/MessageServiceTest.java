@@ -1,14 +1,6 @@
 package com.spring.mall.serviceTests;
 
-import com.spring.DTO.request.SendMessageRequestDTO;
-import com.spring.Entity.Chat;
-import com.spring.Entity.Message;
 import com.spring.Entity.User;
-import com.spring.Exceptions.ChatException;
-import com.spring.Exceptions.MessageException;
-import com.spring.Exceptions.UserException;
-import com.spring.Services.ChatService;
-import com.spring.Services.MessageService;
 import com.spring.Services.UserService;
 import com.spring.mall.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
