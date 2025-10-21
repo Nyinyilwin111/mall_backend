@@ -1,115 +1,98 @@
 package com.spring.Controller;
 
-import com.spring.Config.TokenProvider;
-import com.spring.DTO.request.LoginRequestDTO;
-import com.spring.DTO.request.UpdateUserRequestDTO;
-import com.spring.DTO.response.LoginResponseDTO;
+import com.spring.DTO.response.JwtResponse;
+import com.spring.DTO.request.LoginRequest;
+import com.spring.DTO.request.SignupRequest;
 import com.spring.Entity.User;
-import com.spring.Exceptions.UserException;
 import com.spring.Repository.UserRepository;
-import com.spring.Services.ServiceImplements.CustomUserDetailsServiceImpl;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import com.spring.Util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
-
-@Slf4j
-@CrossOrigin
 @RestController
-@RequiredArgsConstructor
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
+@CrossOrigin(origins = "*")
 public class AuthController {
 
     @Autowired
-    TokenProvider tokenProvider;
+    private AuthenticationManager authenticationManager;
 
     @Autowired
-    UserRepository userRepository;
+    private UserRepository userRepository;
 
     @Autowired
-    PasswordEncoder passwordEncoder;
+    private PasswordEncoder passwordEncoder;
 
     @Autowired
-    CustomUserDetailsServiceImpl customUserDetailsServiceImpl;
-
-    @PostMapping("/signup")
-    public ResponseEntity<LoginResponseDTO> signup(@RequestBody UpdateUserRequestDTO signupRequestDTO) throws UserException {
-
-        final String email = signupRequestDTO.email();
-        final String password = signupRequestDTO.password();
-        final String fullName = signupRequestDTO.fullName();
-
-        Optional<User> existingUser = userRepository.findByEmail(email);
-
-        if (existingUser.isPresent()) {
-            throw new UserException("Account with email " + email + " already exists");
-        }
-
-        User newUser = User.builder()
-                .email(email)
-                .password(passwordEncoder.encode(password))
-                .fullName(fullName)
-                .build();
-
-        userRepository.save(newUser);
-
-        Authentication authentication = new UsernamePasswordAuthenticationToken(email, password);
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = tokenProvider.generateToken(authentication);
-
-        LoginResponseDTO loginResponseDTO = LoginResponseDTO.builder()
-                .token(jwt)
-                .isAuthenticated(true)
-                .build();
-
-        log.info("User {} successfully signed up", email);
-
-        return new ResponseEntity<>(loginResponseDTO, HttpStatus.ACCEPTED);
-    }
+    private JwtUtil jwtUtil;
 
     @PostMapping("/signin")
-    public ResponseEntity<LoginResponseDTO> login(@RequestBody LoginRequestDTO loginRequestDTO) {
+    public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
+        try {
+            System.out.println("Login attempt for user: " + loginRequest.getUsername());
 
-        final String email = loginRequestDTO.email();
-        final String password = loginRequestDTO.password();
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
+            );
 
-        Authentication authentication = authenticateReq(email, password);
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = tokenProvider.generateToken(authentication);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            String jwt = jwtUtil.generateToken(loginRequest.getUsername());
 
-        LoginResponseDTO loginResponseDTO = LoginResponseDTO.builder()
-                .token(jwt)
-                .isAuthenticated(true)
-                .build();
+            User user = userRepository.findByUsername(loginRequest.getUsername())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-        log.info("User {} successfully signed in", loginRequestDTO.email());
+            System.out.println("Login successful for user: " + loginRequest.getUsername());
+            return ResponseEntity.ok(new JwtResponse(jwt, user.getId(), user.getUsername(), user.getEmail(), user.getRoles()));
 
-        return new ResponseEntity<>(loginResponseDTO, HttpStatus.ACCEPTED);
+        } catch (BadCredentialsException e) {
+            System.out.println("Bad credentials for user: " + loginRequest.getUsername());
+            return ResponseEntity.badRequest().body("Error: Invalid username or password");
+        } catch (AuthenticationException e) {
+            System.out.println("Authentication failed: " + e.getMessage());
+            return ResponseEntity.badRequest().body("Error: Authentication failed - " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("Unexpected error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
     }
 
-    public Authentication authenticateReq(String username, String password) {
+    @PostMapping("/signup")
+    public ResponseEntity<?> registerUser(@RequestBody SignupRequest signUpRequest) {
+        try {
+            System.out.println("Signup attempt for user: " + signUpRequest.getUsername());
 
-        UserDetails userDetails = customUserDetailsServiceImpl.loadUserByUsername(username);
+            if (userRepository.existsByUsername(signUpRequest.getUsername())) {
+                return ResponseEntity.badRequest().body("Error: Username is already taken!");
+            }
 
-        if (userDetails == null) {
-            throw new BadCredentialsException("Invalid username");
+            if (userRepository.existsByEmail(signUpRequest.getEmail())) {
+                return ResponseEntity.badRequest().body("Error: Email is already in use!");
+            }
+
+            User user = new User();
+            user.setUsername(signUpRequest.getUsername());
+            user.setEmail(signUpRequest.getEmail());
+            user.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
+            user.setEnabled(true); // Make sure this is set
+
+            userRepository.save(user);
+            System.out.println("User registered successfully: " + signUpRequest.getUsername());
+
+            return ResponseEntity.ok("User registered successfully!");
+
+        } catch (Exception e) {
+            System.out.println("Signup error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Error during registration: " + e.getMessage());
         }
-
-        if (!passwordEncoder.matches(password, userDetails.getPassword())) {
-            throw new BadCredentialsException("Invalid Password");
-        }
-
-        return new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
     }
-
 }
