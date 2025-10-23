@@ -116,6 +116,41 @@ public class AdminController {
 
         return ResponseEntity.ok("Roles assigned successfully!");
     }
+    // Alternative delete method that removes role from users first
+    @DeleteMapping("/roles/{roleId}")
+    public ResponseEntity<?> deleteRole(@PathVariable Long roleId) {
+        try {
+            Role role = roleRepository.findById(roleId)
+                    .orElseThrow(() -> new RuntimeException("Error: Role not found"));
+
+            // Find all users that have this role
+            List<User> usersWithRole = userRepository.findAll().stream()
+                    .filter(user -> user.getRoles().contains(role))
+                    .collect(Collectors.toList());
+
+            // Remove role from all users
+            for (User user : usersWithRole) {
+                user.getRoles().remove(role);
+                userRepository.save(user);
+            }
+
+            // Now delete the role
+            roleRepository.delete(role);
+
+            String message = "Role deleted successfully!";
+            if (!usersWithRole.isEmpty()) {
+                message += " Removed from " + usersWithRole.size() + " users.";
+            }
+
+            return ResponseEntity.ok(message);
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Error: Failed to delete role");
+        }
+    }
 
     // Alternative delete method that removes role from users first
     @DeleteMapping("/roles/{roleId}")
