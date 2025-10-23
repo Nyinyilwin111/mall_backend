@@ -32,21 +32,22 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         // Create permissions
+        Permission userManagement = createPermissionIfNotFound("USER_MANAGEMENT", "Manage users");
         Permission userRead = createPermissionIfNotFound("USER_READ", "Read user information");
         Permission userWrite = createPermissionIfNotFound("USER_WRITE", "Create/update users");
-        Permission productManagement = createPermissionIfNotFound("PRODUCT_MANAGEMENT", "Manage products");
-        Permission orderManagement = createPermissionIfNotFound("ORDER_MANAGEMENT", "Manage orders");
+        Permission spaceManagement = createPermissionIfNotFound("SPACE_MANAGEMENT", "Manage spaces");
+        Permission bookingManagement = createPermissionIfNotFound("BOOKING_MANAGEMENT", "Manage booking");
         Permission roleManagement = createPermissionIfNotFound("ROLE_MANAGEMENT", "Manage roles and permissions");
 
         // Create roles
         Role ceoRole = createRoleIfNotFound("CEO", "Chief Executive Officer with full access",
-                new HashSet<>(Arrays.asList(userRead, userWrite, productManagement, orderManagement, roleManagement)));
+                new HashSet<>(Arrays.asList(userRead, userWrite, spaceManagement, bookingManagement,userManagement, roleManagement)));
 
         Role managerRole = createRoleIfNotFound("MANAGER", "Store Manager",
-                new HashSet<>(Arrays.asList(userRead, productManagement, orderManagement)));
+                new HashSet<>(Arrays.asList(userRead, spaceManagement, bookingManagement)));
 
         Role staffRole = createRoleIfNotFound("STAFF", "Store Staff",
-                new HashSet<>(Arrays.asList(userRead, orderManagement)));
+                new HashSet<>(Arrays.asList(userRead, bookingManagement)));
 
         // Create CEO user
         createUserIfNotFound("ceo", "ceo@mall.com", "ceo123", ceoRole);

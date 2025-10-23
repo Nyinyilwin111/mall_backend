@@ -19,7 +19,8 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/admin")
 @CrossOrigin(origins = "*")
-@PreAuthorize("hasAuthority('ROLE_MANAGEMENT')")
+
+@PreAuthorize("hasAnyAuthority('ROLE_MANAGEMENT', 'USER_MANAGEMENT')")
 public class AdminController {
 
     @Autowired
@@ -56,6 +57,38 @@ public class AdminController {
         return ResponseEntity.ok("Permission created successfully!");
     }
 
+    // Alternative delete method that removes permission from roles first
+    @DeleteMapping("/permissions/{permissionId}")
+    public ResponseEntity<?> deletePermission(@PathVariable Long permissionId) {
+        try {
+            Permission permission = permissionRepository.findById(permissionId)
+                    .orElseThrow(() -> new RuntimeException("Error: Permission not found"));
+
+            // Find all roles that have this permission
+            List<Role> rolesWithPermission = roleRepository.findAll().stream()
+                    .filter(role -> role.getPermissions().contains(permission))
+                    .collect(Collectors.toList());
+
+            // Remove permission from all roles
+            for (Role role : rolesWithPermission) {
+                role.getPermissions().remove(permission);
+                roleRepository.save(role);
+            }
+
+            // Now delete the permission
+            permissionRepository.delete(permission);
+
+            return ResponseEntity.ok("Permission deleted successfully! Removed from " +
+                    rolesWithPermission.size() + " roles.");
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Error: Failed to delete permission");
+        }
+    }
+
     @GetMapping("/permissions")
     public List<Permission> getAllPermissions() {
         return permissionRepository.findAll();
@@ -76,6 +109,41 @@ public class AdminController {
         userRepository.save(user);
 
         return ResponseEntity.ok("Roles assigned successfully!");
+    }
+    // Alternative delete method that removes role from users first
+    @DeleteMapping("/roles/{roleId}")
+    public ResponseEntity<?> deleteRole(@PathVariable Long roleId) {
+        try {
+            Role role = roleRepository.findById(roleId)
+                    .orElseThrow(() -> new RuntimeException("Error: Role not found"));
+
+            // Find all users that have this role
+            List<User> usersWithRole = userRepository.findAll().stream()
+                    .filter(user -> user.getRoles().contains(role))
+                    .collect(Collectors.toList());
+
+            // Remove role from all users
+            for (User user : usersWithRole) {
+                user.getRoles().remove(role);
+                userRepository.save(user);
+            }
+
+            // Now delete the role
+            roleRepository.delete(role);
+
+            String message = "Role deleted successfully!";
+            if (!usersWithRole.isEmpty()) {
+                message += " Removed from " + usersWithRole.size() + " users.";
+            }
+
+            return ResponseEntity.ok(message);
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Error: Failed to delete role");
+        }
     }
 
     // Role Permission Assignment
