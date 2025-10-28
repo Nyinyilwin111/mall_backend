@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -96,7 +97,7 @@ public class AdminController {
 
     // User Role Assignment
     @PutMapping("/users/{userId}/roles")
-    public ResponseEntity<?> assignRoleToUser(@PathVariable Long userId, @RequestBody Set<String> roleNames) {
+    public ResponseEntity<?> assignRoleToUser(@PathVariable UUID userId, @RequestBody Set<String> roleNames) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Error: User not found"));
 

@@ -1,5 +1,6 @@
 package com.spring.Util;
 
+import com.spring.Config.JwtConstants;
 import io.jsonwebtoken.*;
 import org.springframework.stereotype.Component;
 
@@ -11,6 +12,7 @@ public class JwtUtil {
     // Very simple secret without special characters
     private final String secret = "MyVeryLongSecretKeyForJWTTokenGenerationWithoutAnySpecialCharacters123456789";
     private final long expiration = 86400000;
+
 
     public String generateToken(String username) {
         return Jwts.builder()
@@ -37,4 +39,5 @@ public class JwtUtil {
             return false;
         }
     }
+
 }

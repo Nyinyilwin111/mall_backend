@@ -5,6 +5,7 @@ import com.spring.DTO.request.LoginRequest;
 import com.spring.DTO.request.SignupRequest;
 import com.spring.Entity.User;
 import com.spring.Repository.UserRepository;
+import com.spring.Services.UserService;
 import com.spring.Util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +27,8 @@ public class AuthController {
     private AuthenticationManager authenticationManager;
 
     @Autowired
-    private UserRepository userRepository;
+    UserService userService;
+//    private UserRepository userRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -37,23 +39,22 @@ public class AuthController {
     @PostMapping("/signin")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
         try {
-            System.out.println("Login attempt for user: " + loginRequest.getUsername());
+            System.out.println("Login attempt for user: " + loginRequest.getFullName());
 
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
+                    new UsernamePasswordAuthenticationToken(loginRequest.getFullName(), loginRequest.getPassword())
             );
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            String jwt = jwtUtil.generateToken(loginRequest.getUsername());
+            String jwt = jwtUtil.generateToken(loginRequest.getFullName());
 
-            User user = userRepository.findByUsername(loginRequest.getUsername())
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+            User user = userService.findByUsername(loginRequest.getFullName());
 
-            System.out.println("Login successful for user: " + loginRequest.getUsername());
-            return ResponseEntity.ok(new JwtResponse(jwt, user.getId(), user.getUsername(), user.getEmail(), user.getRoles()));
+            System.out.println("Login successful for user: " + loginRequest.getFullName());
+            return ResponseEntity.ok(new JwtResponse(jwt, user.getId(), user.getFullName(), user.getEmail(), user.getRoles()));
 
         } catch (BadCredentialsException e) {
-            System.out.println("Bad credentials for user: " + loginRequest.getUsername());
+            System.out.println("Bad credentials for user: " + loginRequest.getFullName());
             return ResponseEntity.badRequest().body("Error: Invalid username or password");
         } catch (AuthenticationException e) {
             System.out.println("Authentication failed: " + e.getMessage());
@@ -68,26 +69,26 @@ public class AuthController {
     @PostMapping("/signup")
     public ResponseEntity<?> registerUser(@RequestBody SignupRequest signUpRequest) {
         try {
-            System.out.println("Signup attempt for user: " + signUpRequest.getUsername());
+            System.out.println("Signup attempt for user: " + signUpRequest.getFullName());
 
-            if (userRepository.existsByUsername(signUpRequest.getUsername())) {
+            if (userService.existsByUsername(signUpRequest.getFullName())) {
                 return ResponseEntity.badRequest().body("Error: Username is already taken!");
             }
 
-            if (userRepository.existsByEmail(signUpRequest.getEmail())) {
+            if (userService.existsByEmail(signUpRequest.getEmail())) {
                 return ResponseEntity.badRequest().body("Error: Email is already in use!");
             }
 
             User user = new User();
-            user.setUsername(signUpRequest.getUsername());
+            user.setFullName(signUpRequest.getFullName());
             user.setEmail(signUpRequest.getEmail());
             user.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
             user.setEnabled(true); // Make sure this is set
 
-            userRepository.save(user);
-            System.out.println("User registered successfully: " + signUpRequest.getUsername());
+            userService.save(user);
+            System.out.println("User registered successfully: " + signUpRequest.getFullName());
 
-            return ResponseEntity.ok("User registered successfully!");
+            return ResponseEntity.ok(new JwtResponse(null, user.getId(), user.getFullName(), user.getEmail(), user.getRoles()));
 
         } catch (Exception e) {
             System.out.println("Signup error: " + e.getMessage());

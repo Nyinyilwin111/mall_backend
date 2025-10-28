@@ -68,7 +68,7 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void createUserIfNotFound(String username, String email, String password, Role role) {
-        if (!userRepository.existsByUsername(username)) {
+        if (!userRepository.existsByFullName(username)) {
             User user = new User(username, passwordEncoder.encode(password), email);
             user.setRoles(new HashSet<>(Arrays.asList(role)));
             userRepository.save(user);
