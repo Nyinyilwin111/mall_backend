@@ -38,6 +38,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
+                        // WebSocket and Auth endpoints
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/test/**").permitAll()
@@ -49,6 +50,12 @@ public class SecurityConfig {
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/api/branches/**").permitAll()
                         .requestMatchers("/error").permitAll()
+
+                        // Space Management endpoints - ADD THESE
+                        .requestMatchers("/api/floors/**").permitAll()
+                        .requestMatchers("/api/spaces/**").permitAll()
+                        .requestMatchers("/api/space-types/**").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
