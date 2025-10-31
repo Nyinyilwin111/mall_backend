@@ -54,7 +54,7 @@ public class MessageController {
             System.out.println("File size in bytes: " + sizeInBytes);
 
             // Optional: reject if size > 5MB
-            long maxSize = 5 * 1024 * 1024;
+            long maxSize = 200 * 1024 * 1024;
             if (sizeInBytes > maxSize) {
                 throw new ChatException("File size exceeds maximum 5MB");
             }

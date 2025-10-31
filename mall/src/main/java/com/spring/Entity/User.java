@@ -1,6 +1,5 @@
 package com.spring.Entity;
 
-
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.UuidGenerator;
@@ -29,6 +28,13 @@ public class User {
     private String email;
 
     private boolean enabled = true; // Make sure this exists and defaults to true
+
+    @ManyToOne
+    private Branch branch;
+
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "user_id")
+    private Set<SubscriptionEntity> subscriptions = new HashSet<>();
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
