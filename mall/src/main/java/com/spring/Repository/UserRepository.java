@@ -1,5 +1,6 @@
 package com.spring.Repository;
 
+import com.spring.Entity.Branch;
 import com.spring.Entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -29,4 +30,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("SELECT u FROM User u WHERE LOWER(u.fullName) LIKE LOWER(CONCAT('%', :fullName, '%'))")
     List<User> searchByFullName(@Param("fullName") String fullName);
+
+    List<User> findByBranch(Branch branch);
 }

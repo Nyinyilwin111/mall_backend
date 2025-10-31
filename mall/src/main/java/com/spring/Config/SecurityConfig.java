@@ -44,7 +44,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/**").permitAll()
                         .requestMatchers("/api/chats/**").permitAll()
                         .requestMatchers("/api/sms/**").permitAll()
+                        .requestMatchers("/api/push/user/**").permitAll() // ✅ allow this
+                        .requestMatchers("/api/push/**").authenticated() // other push endpoints require auth
                         .requestMatchers("/uploads/**").permitAll()
+                        .requestMatchers("/api/branches/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
@@ -52,6 +55,7 @@ public class SecurityConfig {
 
         return http.build();
     }
+
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
