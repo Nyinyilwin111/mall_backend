@@ -1,7 +1,6 @@
 package com.spring.Services;
 
 import com.spring.DTO.request.GetPushMessageDto;
-import com.spring.DTO.response.PushMessageDto;
 import com.spring.Entity.PushMessage;
 import org.springframework.stereotype.Service;
 
@@ -14,5 +13,9 @@ public interface PushMessageService {
     List<GetPushMessageDto> getMessagesForUser(UUID userId);  // Returns Response DTO
 //    PushMessage createMessage(PushMessageDto requestDto);     // Accepts Request DTO
     PushMessage save(PushMessage message);
-    void markAsRead(UUID messageUuid);
+    PushMessage markAsRead(UUID messageUuid);
+
+    Long getUnreadCount(UUID userId);
+
+    PushMessage findById(UUID messageUuid);
 }

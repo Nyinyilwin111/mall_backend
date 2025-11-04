@@ -65,12 +65,25 @@ public class SmsServiceImpl implements PushMessageService {
     }
 
     @Override
-    public void markAsRead(UUID messageUuid) {
+    public PushMessage markAsRead(UUID messageUuid) {
         Optional<PushMessage> optionalMessage = pushMessageRepository.findById(messageUuid);
         if (optionalMessage.isPresent()) {
             PushMessage message = optionalMessage.get();
             message.setReadby(true);
-            pushMessageRepository.save(message);
+            return pushMessageRepository.save(message);
+        }else {
+            return null;
         }
+
+    }
+
+    @Override
+    public Long getUnreadCount(UUID userId) {
+        return pushMessageRepository.countByRecipientUserIdAndReadbyFalse(userId);
+    }
+
+    @Override
+    public PushMessage findById(UUID messageUuid) {
+        return pushMessageRepository.findById(messageUuid).orElse(null);
     }
 }

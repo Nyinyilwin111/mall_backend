@@ -66,7 +66,7 @@ public class MessageServiceImpl implements MessageService {
             throw new UserException("User isn't related to chat " + chatId);
         }
 
-        return messageRepository.findByChat_Id(chat.getId());
+        return messageRepository.findMessagesByChatAndUser(chat.getId(),reqUser.getId());
     }
 
     @Override

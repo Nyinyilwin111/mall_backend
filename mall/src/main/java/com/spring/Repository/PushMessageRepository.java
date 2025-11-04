@@ -20,4 +20,6 @@ public interface PushMessageRepository extends JpaRepository<PushMessage, UUID> 
             "pm.sentToAll = true ")
     List<PushMessage> findMessagesForUser(@Param("user") User user);
 
+    Long countByRecipientUserIdAndReadbyFalse(UUID recipientUserId);
+
 }

@@ -2,7 +2,6 @@ package com.spring.Controller;
 
 import com.spring.DTO.request.GetPushMessageDto;
 import com.spring.DTO.request.SubscriptionDto;
-import com.spring.DTO.response.PushMessageDto;
 import com.spring.Entity.*;
 import com.spring.Repository.*;
 import com.spring.Services.PushMessageService;
@@ -33,10 +32,13 @@ public class PushController {
     private BranchRepository branchRepository;
 
     @Autowired
-    UserService userService;
+    private UserService userService;
 
     @Autowired
-    PushMessageService pushMessageService;
+    private PushMessageService pushMessageService;
+
+    @Autowired
+    private WebSocketNotificationController webSocketNotificationController;
 
     @Value("${vapid.public}")
     private String publicKey;
@@ -50,10 +52,11 @@ public class PushController {
         }
     }
 
-    // Save a new subscription from frontend
+    // Enhanced subscribe method with WebSocket notification
     @PostMapping("/subscribe")
     public ResponseEntity<Map<String, Object>> subscribe(@RequestBody SubscriptionDto dto,
                                                          @RequestParam String userId) {
+        System.out.println("reach in subscribtion controller !.........");
         Map<String, Object> response = new HashMap<>();
         try {
             UUID uuid = UUID.fromString(userId);
@@ -68,39 +71,24 @@ public class PushController {
             User user = userOpt.get();
             SubscriptionEntity newEntity = SubscriptionMapper.toEntity(dto);
 
-            // FIX: Check if subscription with same endpoint already exists
-            boolean subscriptionExists = user.getSubscriptions().stream()
-                    .anyMatch(sub -> sub.getEndpoint().equals(newEntity.getEndpoint()));
-
-            if (subscriptionExists) {
-                // Subscription already exists, just return success
-                System.out.println("Subscription already exists for user: " + user.getEmail());
-                response.put("status", "success");
-                response.put("message", "Subscription already exists");
-                response.put("action", "exists");
-                response.put("subscriptionCount", user.getSubscriptions().size());
-                return ResponseEntity.ok(response);
-            }
-
-            // Remove any existing subscription with different endpoint but same user
-            // This ensures only one subscription per user
-            if (!user.getSubscriptions().isEmpty()) {
-                System.out.println("Replacing old subscription with new one for user: " + user.getEmail());
-                user.getSubscriptions().clear();
-            }
+            // OPTION 1: Clear ALL existing subscriptions for this user
+            System.out.println("🗑️ Clearing " + user.getSubscriptions().size() + " existing subscriptions for user: " + user.getEmail());
+            user.getSubscriptions().clear();
 
             // Add the new subscription
             user.getSubscriptions().add(newEntity);
             userRepository.save(user);
 
-            System.out.println("Subscription " + (subscriptionExists ? "updated" : "added") +
-                    " for user: " + user.getEmail() + " (Total: " + user.getSubscriptions().size() + ")");
+            System.out.println("✅ New subscription added for user: " + user.getEmail() +
+                    " (Total: " + user.getSubscriptions().size() + ")");
 
             response.put("status", "success");
             response.put("message", "Subscription processed successfully");
-            response.put("action", subscriptionExists ? "updated" : "added");
+            response.put("action", "added");
             response.put("subscriptionCount", user.getSubscriptions().size());
             response.put("userEmail", user.getEmail());
+            response.put("clearedPrevious", true);
+
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
@@ -111,9 +99,9 @@ public class PushController {
         }
     }
 
-    /** Global broadcast to all subscriptions - FIXED VERSION */
+    // Enhanced sendAll with WebSocket notifications
     @PostMapping("/sendAll")
-    public Map<String, Object> sendAll(@RequestBody Map<String, String> payload) {
+    public ResponseEntity<Map<String, Object>> sendAll(@RequestBody Map<String, String> payload) {
         Map<String, Object> response = new HashMap<>();
         String title = payload.get("title");
         String body = payload.get("body");
@@ -122,7 +110,7 @@ public class PushController {
         if (title == null || body == null) {
             response.put("status", "error");
             response.put("message", "Missing title or body");
-            return response;
+            return ResponseEntity.badRequest().body(response);
         }
 
         try {
@@ -133,8 +121,12 @@ public class PushController {
             message.setSentToAll(true);
 
             if (userId != null && !userId.isEmpty()) {
-                UUID uid = UUID.fromString(userId);
-                userRepository.findById(uid).ifPresent(message::setCreatedUserId);
+                try {
+                    UUID uid = UUID.fromString(userId);
+                    userRepository.findById(uid).ifPresent(message::setCreatedUserId);
+                } catch (IllegalArgumentException e) {
+                    System.err.println("Invalid user ID format: " + userId);
+                }
             }
 
             PushMessage savedMessage = pushMessageService.save(message);
@@ -145,7 +137,6 @@ public class PushController {
             pushService.setPublicKey(Utils.loadPublicKey(publicKey));
             pushService.setSubject("mailto:admin@seingahar.com");
 
-            // FIXED: Proper JSON payload format
             String jsonBody = String.format(
                     "{\"title\":\"%s\",\"body\":\"%s\",\"icon\":\"/sgh.png\",\"badge\":\"/sgh.png\",\"url\":\"/notifications\",\"timestamp\":\"%s\"}",
                     title.replace("\"", "\\\""),
@@ -155,10 +146,12 @@ public class PushController {
 
             int sentCount = 0;
             int totalSubscriptions = 0;
+            Set<UUID> notifiedUsers = new HashSet<>();
 
-            for (User user : userRepository.findAll()) {
+            List<User> allUsers = userRepository.findAll();
+            for (User user : allUsers) {
+                totalSubscriptions += user.getSubscriptions().size();
                 for (SubscriptionEntity sub : user.getSubscriptions()) {
-                    totalSubscriptions++;
                     try {
                         Notification notification = new Notification(
                                 sub.getEndpoint(),
@@ -168,36 +161,41 @@ public class PushController {
                         );
                         pushService.send(notification);
                         sentCount++;
-                        System.out.println("Push sent to: " + user.getEmail());
+                        notifiedUsers.add(user.getId());
+                        System.out.println("✅ Push sent to: " + user.getEmail());
                     } catch (Exception e) {
-                        System.err.println("Failed to send to user " + user.getEmail() + ": " + e.getMessage());
+                        System.err.println("❌ Failed to send to user " + user.getEmail() + ": " + e.getMessage());
                         // Remove invalid subscriptions
                         if (e.getMessage().contains("410") || e.getMessage().contains("404")) {
                             user.getSubscriptions().removeIf(s -> s.getEndpoint().equals(sub.getEndpoint()));
                             userRepository.save(user);
-                            System.out.println("Removed invalid subscription for: " + user.getEmail());
+                            System.out.println("🗑️ Removed invalid subscription for: " + user.getEmail());
                         }
                     }
                 }
+
+                // Send WebSocket notification count update
+                webSocketNotificationController.sendNotificationCountUpdate(user.getId());
             }
 
             response.put("status", "success");
             response.put("sent", sentCount);
             response.put("total", totalSubscriptions);
-            response.put("messageId", savedMessage.getId());
-            return response;
+            response.put("notifiedUsers", notifiedUsers.size());
+            response.put("messageId", savedMessage.getId() != null ? savedMessage.getId().toString() : null);
+            return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             e.printStackTrace();
             response.put("status", "error");
             response.put("message", e.getMessage());
-            return response;
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
-    /** Branch-specific broadcast - FIXED VERSION */
+    // Enhanced sendBranch with WebSocket
     @PostMapping("/sendBranch")
-    public Map<String, Object> sendBranch(@RequestBody Map<String, String> payload) {
+    public ResponseEntity<Map<String, Object>> sendBranch(@RequestBody Map<String, String> payload) {
         Map<String, Object> response = new HashMap<>();
         String title = payload.get("title");
         String body = payload.get("body");
@@ -207,7 +205,7 @@ public class PushController {
         if (title == null || body == null || branchIdStr == null) {
             response.put("status", "error");
             response.put("message", "Missing title, body, or branchId");
-            return response;
+            return ResponseEntity.badRequest().body(response);
         }
 
         try {
@@ -216,17 +214,16 @@ public class PushController {
             if (branchOpt.isEmpty()) {
                 response.put("status", "error");
                 response.put("message", "Branch not found");
-                return response;
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
             }
 
             List<User> branchUsers = userRepository.findUsersByBranch(branchOpt.get());
             if (branchUsers.isEmpty()) {
                 response.put("status", "warning");
                 response.put("message", "No users found in this branch");
-                return response;
+                return ResponseEntity.ok(response);
             }
 
-            // PushService for notifications
             PushService pushService = new PushService();
             pushService.setPrivateKey(Utils.loadPrivateKey(privateKey));
             pushService.setPublicKey(Utils.loadPublicKey(publicKey));
@@ -235,7 +232,6 @@ public class PushController {
             int sentCount = 0;
             int totalSubscriptions = 0;
 
-            // FIXED: Proper JSON payload format
             String jsonBody = String.format(
                     "{\"title\":\"%s\",\"body\":\"%s\",\"icon\":\"/sgh.png\",\"badge\":\"/sgh.png\",\"url\":\"/notifications\",\"timestamp\":\"%s\"}",
                     title.replace("\"", "\\\""),
@@ -243,8 +239,8 @@ public class PushController {
                     LocalDateTime.now().toString()
             );
 
-            // Save a PushMessage for each user and send push notification
             for (User user : branchUsers) {
+                // Save message for each user
                 PushMessage message = new PushMessage();
                 message.setMessage(title + " - " + body);
                 message.setDateTime(LocalDateTime.now());
@@ -253,8 +249,12 @@ public class PushController {
                 message.setRecipientUser(user);
 
                 if (userIdStr != null && !userIdStr.isEmpty()) {
-                    UUID senderId = UUID.fromString(userIdStr);
-                    userRepository.findById(senderId).ifPresent(message::setCreatedUserId);
+                    try {
+                        UUID senderId = UUID.fromString(userIdStr);
+                        userRepository.findById(senderId).ifPresent(message::setCreatedUserId);
+                    } catch (IllegalArgumentException e) {
+                        System.err.println("Invalid sender ID format: " + userIdStr);
+                    }
                 }
 
                 PushMessage savedMessage = pushMessageService.save(message);
@@ -271,31 +271,36 @@ public class PushController {
                         );
                         pushService.send(notification);
                         sentCount++;
-                        System.out.println("Push sent to branch user: " + user.getEmail());
+                        System.out.println("✅ Push sent to branch user: " + user.getEmail());
                     } catch (Exception e) {
-                        System.err.println("Failed to send to user " + user.getEmail() + ": " + e.getMessage());
+                        System.err.println("❌ Failed to send to user " + user.getEmail() + ": " + e.getMessage());
                     }
                 }
+
+                // Send WebSocket notification
+                webSocketNotificationController.sendNotificationCountUpdate(user.getId());
+                webSocketNotificationController.notifyNewMessage(savedMessage, user.getId());
             }
 
             response.put("status", "success");
             response.put("sent", sentCount);
             response.put("total", totalSubscriptions);
-            return response;
+            response.put("branchUsers", branchUsers.size());
+            return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             e.printStackTrace();
             response.put("status", "error");
             response.put("message", e.getMessage());
-            return response;
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
-    /** Send to specific user - FIXED VERSION */
+    // Enhanced sendToUser with WebSocket
     @PostMapping("/sendToUser")
-    public Map<String, Object> sendToUser(@RequestBody Map<String, String> payload) {
+    public ResponseEntity<Map<String, Object>> sendToUser(@RequestBody Map<String, String> payload) {
+        System.out.println("🎯 Reached sendToUser endpoint");
 
-        System.out.println(" reach into send specific user _________________-");
         Map<String, Object> response = new HashMap<>();
         String title = payload.get("title");
         String body = payload.get("body");
@@ -305,27 +310,23 @@ public class PushController {
         if (title == null || body == null || userIdStr == null) {
             response.put("status", "error");
             response.put("message", "Missing title, body, or userId");
-            return response;
+            return ResponseEntity.badRequest().body(response);
         }
 
         try {
             UUID userId = UUID.fromString(userIdStr);
             Optional<User> userOpt = userRepository.findById(userId);
-            System.out.println("get user is : "+userOpt);
+            System.out.println("👤 Target user found: " + userOpt.isPresent());
+
             if (userOpt.isEmpty()) {
                 response.put("status", "error");
                 response.put("message", "User not found");
-                return response;
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
             }
 
             User user = userOpt.get();
-            if (user.getSubscriptions().isEmpty()) {
-                response.put("status", "warning");
-                response.put("message", "User has no active subscriptions");
-                return response;
-            }
 
-            // Save push message
+            // Save push message even if user has no subscriptions (for WebSocket)
             PushMessage message = new PushMessage();
             message.setMessage(title + " - " + body);
             message.setDateTime(LocalDateTime.now());
@@ -333,117 +334,136 @@ public class PushController {
             message.setRecipientUser(user);
 
             if (senderIdStr != null && !senderIdStr.isEmpty()) {
-                UUID senderId = UUID.fromString(senderIdStr);
-                userRepository.findById(senderId).ifPresent(message::setCreatedUserId);
-            }
-
-            PushMessage savedMessage = pushMessageService.save(message);
-
-            System.out.println("save message info : "+savedMessage);
-
-            // Send push notification
-            PushService pushService = new PushService();
-            pushService.setPrivateKey(Utils.loadPrivateKey(privateKey));
-            pushService.setPublicKey(Utils.loadPublicKey(publicKey));
-            pushService.setSubject("mailto:admin@seingahar.com");
-
-            // FIXED: Proper JSON payload format
-            String jsonBody = String.format(
-                    "{\"title\":\"%s\",\"body\":\"%s\",\"icon\":\"/sgh.png\",\"badge\":\"/sgh.png\",\"url\":\"/notifications\",\"timestamp\":\"%s\"}",
-                    title.replace("\"", "\\\""),
-                    body.replace("\"", "\\\""),
-                    LocalDateTime.now().toString()
-            );
-
-            int sentCount = 0;
-            for (SubscriptionEntity sub : user.getSubscriptions()) {
                 try {
-                    Notification notification = new Notification(
-                            sub.getEndpoint(),
-                            sub.getP256dh(),
-                            sub.getAuth(),
-                            jsonBody.getBytes("UTF-8")
-                    );
-                    pushService.send(notification);
-                    sentCount++;
-                    System.out.println("Push sent to user: " + user.getEmail());
-                } catch (Exception e) {
-                    System.err.println("Failed to send to user " + user.getEmail() + ": " + e.getMessage());
+                    UUID senderId = UUID.fromString(senderIdStr);
+                    userRepository.findById(senderId).ifPresent(message::setCreatedUserId);
+                } catch (IllegalArgumentException e) {
+                    System.err.println("Invalid sender ID format: " + senderIdStr);
                 }
             }
 
+            PushMessage savedMessage = pushMessageService.save(message);
+            System.out.println("💾 Message saved with ID: " + savedMessage.getId());
+
+            // Send push notification only if user has subscriptions
+            int sentCount = 0;
+            if (!user.getSubscriptions().isEmpty()) {
+                PushService pushService = new PushService();
+                pushService.setPrivateKey(Utils.loadPrivateKey(privateKey));
+                pushService.setPublicKey(Utils.loadPublicKey(publicKey));
+                pushService.setSubject("mailto:admin@seingahar.com");
+
+                String jsonBody = String.format(
+                        "{\"title\":\"%s\",\"body\":\"%s\",\"icon\":\"/sgh.png\",\"badge\":\"/sgh.png\",\"url\":\"/notifications\",\"timestamp\":\"%s\"}",
+                        title.replace("\"", "\\\""),
+                        body.replace("\"", "\\\""),
+                        LocalDateTime.now().toString()
+                );
+
+                for (SubscriptionEntity sub : user.getSubscriptions()) {
+                    try {
+                        Notification notification = new Notification(
+                                sub.getEndpoint(),
+                                sub.getP256dh(),
+                                sub.getAuth(),
+                                jsonBody.getBytes("UTF-8")
+                        );
+                        pushService.send(notification);
+                        sentCount++;
+                        System.out.println("✅ Push sent to user: " + user.getEmail());
+                    } catch (Exception e) {
+                        System.err.println("❌ Failed to send to user " + user.getEmail() + ": " + e.getMessage());
+                    }
+                }
+            } else {
+                System.out.println("ℹ️ User has no active subscriptions, only saving message for WebSocket");
+            }
+
+            // Send WebSocket notifications
+            webSocketNotificationController.sendNotificationCountUpdate(user.getId());
+            webSocketNotificationController.notifyNewMessage(savedMessage, user.getId());
+
             response.put("status", "success");
             response.put("sent", sentCount);
-            response.put("messageId", savedMessage.getId());
-            return response;
+            response.put("hasSubscriptions", !user.getSubscriptions().isEmpty());
+            response.put("messageId", savedMessage.getId() != null ? savedMessage.getId().toString() : null);
+            return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             e.printStackTrace();
             response.put("status", "error");
             response.put("message", e.getMessage());
-            return response;
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
-    /** Return public VAPID key for frontend */
-    @GetMapping("/vapidPublicKey")
-    public Map<String, String> getPublicKey() {
-        return Map.of("publicKey", publicKey);
+    // Enhanced markAsRead with WebSocket
+    @PutMapping("/message/{messageId}/read")
+    public ResponseEntity<Map<String, Object>> markAsRead(@PathVariable String messageId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            UUID messageUuid = UUID.fromString(messageId);
+            PushMessage message = pushMessageService.markAsRead(messageUuid);
+
+            if (message != null && message.getRecipientUser() != null) {
+                // Send WebSocket count update
+                webSocketNotificationController.sendNotificationCountUpdate(message.getRecipientUser().getId());
+            }
+
+            response.put("status", "success");
+            response.put("message", "Message marked as read");
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
     }
 
-    // Test endpoint to verify DTO conversion
+    // Get unread count endpoint
+    @GetMapping("/user/{userId}/unread-count")
+    public ResponseEntity<Map<String, Object>> getUnreadCount(@PathVariable String userId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            UUID userUuid = UUID.fromString(userId);
+            Long unreadCount = pushMessageService.getUnreadCount(userUuid);
+
+            response.put("status", "success");
+            response.put("unreadCount", unreadCount);
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    // Existing methods remain the same...
+    @GetMapping("/vapidPublicKey")
+    public ResponseEntity<Map<String, String>> getPublicKey() {
+        Map<String, String> response = new HashMap<>();
+        response.put("publicKey", publicKey);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<GetPushMessageDto>> GetUserMessages(@PathVariable String userId) {
+    public ResponseEntity<List<GetPushMessageDto>> getUserMessages(@PathVariable String userId) {
         try {
             UUID userUuid = UUID.fromString(userId);
             List<GetPushMessageDto> messages = pushMessageService.getMessagesForUser(userUuid);
-
-            for (GetPushMessageDto message : messages) {
-                System.out.println("Message ID: " + message.getId());
-                System.out.println("Message Content: " + message.getMessage());
-                System.out.println("Date Time: " + message.getDateTime());
-                System.out.println("Sent To All: " + message.isSentToAll());
-                System.out.println("Read Status: " + message.isReadby());
-                System.out.println("Branch Name: " + message.getBranchName());
-                System.out.println("Sender Name: " + message.getSenderName());
-                System.out.println("Title: " + message.getTitle()); // If you have getTitle() method
-                System.out.println("-----------------------------------");
-            }
-            // Manual conversion to ensure no serialization issues
-            List<GetPushMessageDto> dtos = messages.stream().map(msg -> {
-                GetPushMessageDto dto = new GetPushMessageDto();
-                dto.setId(msg.getId());
-                dto.setMessage(msg.getMessage());
-                dto.setDateTime(msg.getDateTime());
-                dto.setSentToAll(msg.isSentToAll());
-                dto.setReadby(msg.isReadby());
-                dto.setBranchName(msg.getBranch() != null ? msg.getBranch().getName() : null);
-                dto.setSenderName("Test Sender"); // Hardcode for testing
-                return dto;
-            }).collect(Collectors.toList());
-
-            return ResponseEntity.ok(dtos);
+            return ResponseEntity.ok(messages);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();
         }
     }
-    // Mark message as read
-    @PutMapping("/message/{messageId}/read")
-    public ResponseEntity<Void> markAsRead(@PathVariable String messageId) {
-        try {
-            UUID messageUuid = UUID.fromString(messageId);
-            pushMessageService.markAsRead(messageUuid);
-            return ResponseEntity.ok().build();
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
-    }
 
-    /** Unsubscribe endpoint - FIXED: Use HttpStatus.INTERNAL_SERVER_ERROR */
     @PostMapping("/unsubscribe")
-    public ResponseEntity<String> unsubscribe(@RequestParam String userId,
-                                              @RequestParam String endpoint) {
+    public ResponseEntity<Map<String, Object>> unsubscribe(@RequestParam String userId,
+                                                           @RequestParam String endpoint) {
+        Map<String, Object> response = new HashMap<>();
         try {
             UUID uuid = UUID.fromString(userId);
             Optional<User> userOpt = userRepository.findById(uuid);
@@ -456,17 +476,20 @@ public class PushController {
 
                 if (removed) {
                     userRepository.save(user);
-                    return ResponseEntity.ok("Unsubscribed successfully");
+                    response.put("status", "success");
+                    response.put("message", "Unsubscribed successfully");
+                    return ResponseEntity.ok(response);
                 }
             }
 
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Subscription not found");
+            response.put("status", "error");
+            response.put("message", "Subscription not found");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
 
         } catch (Exception e) {
-            // FIX: Use HttpStatus.INTERNAL_SERVER_ERROR instead of HttpInternalServerError
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error unsubscribing: " + e.getMessage());
+            response.put("status", "error");
+            response.put("message", "Error unsubscribing: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 }
