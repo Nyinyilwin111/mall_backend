@@ -22,4 +22,6 @@ public class Images {
     @JoinColumn(name = "space_id", nullable = false)
     private Space space;
 
+    @OneToOne(mappedBy = "profileImage")
+    private User user;
 }

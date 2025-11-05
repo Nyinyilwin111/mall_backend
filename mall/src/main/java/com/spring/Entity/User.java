@@ -6,10 +6,7 @@ import lombok.Data;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Data
 @Entity
@@ -51,6 +48,10 @@ public class User {
     @JsonIgnore
     private Set<Role> roles = new HashSet<>();
 
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "image_id")
+    private Images profileImage;
+
     // Constructors, getters, setters
     public User() {}
 
@@ -89,5 +90,6 @@ public class User {
                 ", fullName='" + fullName + '\'' +
                 '}';
     }
+
 
 }
