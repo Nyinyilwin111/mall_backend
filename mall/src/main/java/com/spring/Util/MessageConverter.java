@@ -1,9 +1,9 @@
 package com.spring.Util;
 
 import com.spring.DTO.request.GetPushMessageDto;
-import com.spring.Entity.PushMessage;
+import com.spring.Entity.Notification;
 import com.spring.Entity.User;
-import com.spring.Repository.UserRepository;
+import com.spring.RepositoryMain.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -15,7 +15,7 @@ public class MessageConverter {
     @Autowired
     private UserRepository userRepository;
 
-    public GetPushMessageDto convertToDto(PushMessage message) {
+    public GetPushMessageDto convertToDto(Notification message) {
         if (message == null) {
             return null;
         }

@@ -12,7 +12,7 @@ import java.util.UUID;
 @Data
 @Entity
 @ToString
-public class PushMessage {
+public class Notification {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO) // ensure generation strategy is set
@@ -35,7 +35,6 @@ public class PushMessage {
     private User recipientUser;
 
     private boolean readby= false;
-
 
     @ManyToOne
     @JoinColumn(name = "branch_id")

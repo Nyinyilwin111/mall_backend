@@ -4,7 +4,6 @@ import com.spring.DTO.response.JwtResponse;
 import com.spring.DTO.request.LoginRequest;
 import com.spring.DTO.request.SignupRequest;
 import com.spring.Entity.User;
-import com.spring.Repository.UserRepository;
 import com.spring.Services.UserService;
 import com.spring.Util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -3,7 +3,7 @@ package com.spring.Services.ServiceImplements;
 import com.spring.DTO.request.UpdateUserRequestDTO;
 import com.spring.Entity.User;
 import com.spring.Exceptions.UserException;
-import com.spring.Repository.UserRepository;
+import com.spring.RepositoryMain.UserRepository;
 import com.spring.Services.UserService;
 import com.spring.Util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;

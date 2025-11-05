@@ -3,7 +3,8 @@ package com.spring.Controller;
 import com.spring.DTO.request.GetPushMessageDto;
 import com.spring.DTO.request.SubscriptionDto;
 import com.spring.Entity.*;
-import com.spring.Repository.*;
+import com.spring.Entity.Notification;
+import com.spring.RepositoryMain.*;
 import com.spring.Services.PushMessageService;
 import com.spring.Services.UserService;
 import com.spring.SubscriptionMap.SubscriptionMapper;
@@ -18,7 +19,6 @@ import org.springframework.web.bind.annotation.*;
 import java.security.Security;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/push")
@@ -115,7 +115,7 @@ public class PushController {
 
         try {
             // Save push message
-            PushMessage message = new PushMessage();
+            Notification message = new Notification();
             message.setMessage(title + " - " + body);
             message.setDateTime(LocalDateTime.now());
             message.setSentToAll(true);
@@ -129,7 +129,7 @@ public class PushController {
                 }
             }
 
-            PushMessage savedMessage = pushMessageService.save(message);
+            Notification savedMessage = pushMessageService.save(message);
 
             // Send push notifications
             PushService pushService = new PushService();
@@ -153,7 +153,7 @@ public class PushController {
                 totalSubscriptions += user.getSubscriptions().size();
                 for (SubscriptionEntity sub : user.getSubscriptions()) {
                     try {
-                        Notification notification = new Notification(
+                        nl.martijndwars.webpush.Notification notification = new nl.martijndwars.webpush.Notification(
                                 sub.getEndpoint(),
                                 sub.getP256dh(),
                                 sub.getAuth(),
@@ -241,7 +241,7 @@ public class PushController {
 
             for (User user : branchUsers) {
                 // Save message for each user
-                PushMessage message = new PushMessage();
+                Notification message = new Notification();
                 message.setMessage(title + " - " + body);
                 message.setDateTime(LocalDateTime.now());
                 message.setSentToAll(false);
@@ -257,13 +257,13 @@ public class PushController {
                     }
                 }
 
-                PushMessage savedMessage = pushMessageService.save(message);
+                Notification savedMessage = pushMessageService.save(message);
 
                 // Send web push notification
                 for (SubscriptionEntity sub : user.getSubscriptions()) {
                     totalSubscriptions++;
                     try {
-                        Notification notification = new Notification(
+                        nl.martijndwars.webpush.Notification notification = new nl.martijndwars.webpush.Notification(
                                 sub.getEndpoint(),
                                 sub.getP256dh(),
                                 sub.getAuth(),
@@ -327,7 +327,7 @@ public class PushController {
             User user = userOpt.get();
 
             // Save push message even if user has no subscriptions (for WebSocket)
-            PushMessage message = new PushMessage();
+            Notification message = new Notification();
             message.setMessage(title + " - " + body);
             message.setDateTime(LocalDateTime.now());
             message.setSentToAll(false);
@@ -342,7 +342,7 @@ public class PushController {
                 }
             }
 
-            PushMessage savedMessage = pushMessageService.save(message);
+            Notification savedMessage = pushMessageService.save(message);
             System.out.println("💾 Message saved with ID: " + savedMessage.getId());
 
             // Send push notification only if user has subscriptions
@@ -362,7 +362,7 @@ public class PushController {
 
                 for (SubscriptionEntity sub : user.getSubscriptions()) {
                     try {
-                        Notification notification = new Notification(
+                        nl.martijndwars.webpush.Notification notification = new nl.martijndwars.webpush.Notification(
                                 sub.getEndpoint(),
                                 sub.getP256dh(),
                                 sub.getAuth(),
@@ -403,7 +403,7 @@ public class PushController {
         Map<String, Object> response = new HashMap<>();
         try {
             UUID messageUuid = UUID.fromString(messageId);
-            PushMessage message = pushMessageService.markAsRead(messageUuid);
+            Notification message = pushMessageService.markAsRead(messageUuid);
 
             if (message != null && message.getRecipientUser() != null) {
                 // Send WebSocket count update

@@ -7,7 +7,7 @@ import com.spring.Entity.User;
 import com.spring.Exceptions.ChatException;
 import com.spring.Exceptions.MessageException;
 import com.spring.Exceptions.UserException;
-import com.spring.Repository.MessageRepository;
+import com.spring.RepositoryMain.MessageRepository;
 import com.spring.Services.ChatService;
 import com.spring.Services.MessageService;
 import com.spring.Services.UserService;

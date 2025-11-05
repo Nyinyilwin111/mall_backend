@@ -4,7 +4,7 @@ import com.spring.Entity.Branch;
 import com.spring.Entity.User;
 import com.spring.Entity.UserBranch;
 import com.spring.Exceptions.UserException;
-import com.spring.Repository.UserBranchRepository;
+import com.spring.RepositoryMain.UserBranchRepository;
 import com.spring.Services.BranchService;
 import com.spring.Services.UserBranchService;
 import com.spring.Services.UserService;

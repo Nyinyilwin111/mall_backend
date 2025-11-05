@@ -4,6 +4,7 @@ package com.spring.Entity;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 @Data
@@ -14,10 +15,14 @@ public class Role {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(name = "role_name", nullable = false, length = 20)
     private String name;
 
+    @Column(name = "description", length = 255)
     private String description;
+
+    @Column(name = "created_at", insertable = false)
+    private LocalDateTime createdAt;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

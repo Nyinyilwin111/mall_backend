@@ -3,15 +3,14 @@ package com.spring.Controller;
 import com.spring.Entity.Permission;
 import com.spring.Entity.Role;
 import com.spring.Entity.User;
-import com.spring.Repository.PermissionRepository;
-import com.spring.Repository.RoleRepository;
-import com.spring.Repository.UserRepository;
+import com.spring.RepositoryMain.PermissionRepository;
+import com.spring.RepositoryMain.RoleRepository;
+import com.spring.RepositoryMain.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;

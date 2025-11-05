@@ -30,6 +30,7 @@ public class Message {
     private LocalDateTime timeStamp;
 
     @ManyToOne
+    @JoinColumn(name = "user_id")
     private User user;
 
     @ManyToOne
