@@ -1,7 +1,7 @@
 package com.spring.Services.ServiceImplements;
 
 import com.spring.DTO.request.GetPushMessageDto;
-import com.spring.Entity.Notification;
+import com.spring.Entity.PushMessage;
 import com.spring.Entity.User;
 import com.spring.RepositoryMain.PushMessageRepository;
 import com.spring.RepositoryMain.UserRepository;
@@ -49,7 +49,7 @@ public class SmsServiceImpl implements PushMessageService {
         }
 
         User user = optionalUser.get();
-        List<Notification> messages = pushMessageRepository.findMessagesForUser(user);
+        List<PushMessage> messages = pushMessageRepository.findMessagesForUser(user);
 
         System.out.println("Found " + messages.size() + " messages for user: " + user.getEmail());
 
@@ -60,15 +60,15 @@ public class SmsServiceImpl implements PushMessageService {
     }
 
     @Override
-    public Notification save(Notification message) {
+    public PushMessage save(PushMessage message) {
         return pushMessageRepository.save(message);
     }
 
     @Override
-    public Notification markAsRead(UUID messageUuid) {
-        Optional<Notification> optionalMessage = pushMessageRepository.findById(messageUuid);
+    public PushMessage markAsRead(UUID messageUuid) {
+        Optional<PushMessage> optionalMessage = pushMessageRepository.findById(messageUuid);
         if (optionalMessage.isPresent()) {
-            Notification message = optionalMessage.get();
+            PushMessage message = optionalMessage.get();
             message.setReadby(true);
             return pushMessageRepository.save(message);
         }else {
@@ -83,7 +83,7 @@ public class SmsServiceImpl implements PushMessageService {
     }
 
     @Override
-    public Notification findById(UUID messageUuid) {
+    public PushMessage findById(UUID messageUuid) {
         return pushMessageRepository.findById(messageUuid).orElse(null);
     }
 }

@@ -3,7 +3,6 @@ package com.spring.Entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.UuidGenerator;
-import org.springframework.data.annotation.Id;
 
 import java.util.UUID;
 @Entity

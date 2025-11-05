@@ -12,7 +12,8 @@ import java.util.UUID;
 @Data
 @Entity
 @ToString
-public class Notification {
+@Table(name="notification")
+public class PushMessage {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO) // ensure generation strategy is set

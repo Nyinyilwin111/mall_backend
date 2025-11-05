@@ -3,8 +3,6 @@ package com.spring.Entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.UuidGenerator;
-import org.springframework.cglib.core.Local;
-import org.springframework.data.annotation.Id;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -27,7 +25,7 @@ public class Lease {
     @Column(name = "rent_amount", nullable = false)
     private Double rentAmount;
 
-    @Column(name = "rent_amount", nullable = false)
+    @Column(name = "deposit_amount", nullable = false)
     private Double depositAmount;
 
     @Column(name = "contract_doc_url")

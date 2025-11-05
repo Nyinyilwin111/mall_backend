@@ -1,6 +1,6 @@
 package com.spring.Controller;
 
-import com.spring.Entity.Notification;
+import com.spring.Entity.PushMessage;
 import com.spring.RepositoryMain.UserRepository;
 import com.spring.Services.PushMessageService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,7 +50,7 @@ public class WebSocketNotificationController {
     }
 
     // Notify about new message
-    public void notifyNewMessage(Notification message, UUID recipientUserId) {
+    public void notifyNewMessage(PushMessage message, UUID recipientUserId) {
         try {
             Map<String, Object> messageUpdate = new HashMap<>();
             messageUpdate.put("type", "NEW_MESSAGE");
@@ -76,7 +76,7 @@ public class WebSocketNotificationController {
     public void handleMarkAsRead(String messageId) {
         try {
             UUID messageUuid = UUID.fromString(messageId);
-            Notification message = pushMessageService.markAsRead(messageUuid);
+            PushMessage message = pushMessageService.markAsRead(messageUuid);
 
             // Get the user who marked it as read to update their count
             if (message != null && message.getRecipientUser() != null) {
@@ -111,7 +111,7 @@ public class WebSocketNotificationController {
         }
     }
 
-    private Map<String, Object> convertToDto(Notification message) {
+    private Map<String, Object> convertToDto(PushMessage message) {
         Map<String, Object> dto = new HashMap<>();
         dto.put("id", message.getId() != null ? message.getId().toString() : null);
         dto.put("message", message.getMessage());
