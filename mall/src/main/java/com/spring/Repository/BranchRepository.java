@@ -7,6 +7,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -31,14 +33,16 @@ public interface BranchRepository extends JpaRepository<Branch, Long> {
     );
 
 
-
-    // Check if branch name exists
-    boolean existsByName(String name);
-
     // Check if branch name exists excluding a specific branch (for updates)
     @Query("SELECT COUNT(b) > 0 FROM Branch b WHERE b.name = :name AND b.id != :excludeId")
     boolean existsByNameAndIdNot(@Param("name") String name, @Param("excludeId") Long excludeId);
 
     // Find all branches ordered by name
     List<Branch> findAllByOrderByNameAsc();
+
+    Optional<Branch> findByName(String name);
+    Boolean existsByName(String name);
+
+    @Query("SELECT b FROM Branch b WHERE b.id IN :branchIds")
+    List<Branch> findByIds(@Param("branchIds") Set<Long> branchIds);
 }

@@ -13,6 +13,7 @@ import java.util.UUID;
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
 
+
     // Match the entity field "fullName" (not username)
     User findByFullName(String fullName);
 
@@ -29,4 +30,11 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("SELECT u FROM User u WHERE LOWER(u.fullName) LIKE LOWER(CONCAT('%', :fullName, '%'))")
     List<User> searchByFullName(@Param("fullName") String fullName);
+
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.branches WHERE u.id = :userId")
+    Optional<User> findByIdWithBranches(@Param("userId") UUID userId);
+
+    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.roles")
+    List<User> findAllWithRoles();
+
 }

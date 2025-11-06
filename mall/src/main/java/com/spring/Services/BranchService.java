@@ -12,4 +12,5 @@ public interface BranchService {
     BranchResponseDTO updateBranch(Long id, UpdateBranchRequestDTO request);
     void deleteBranch(Long id);
     boolean existsByName(String name);
+
 }

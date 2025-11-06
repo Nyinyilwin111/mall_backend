@@ -28,4 +28,8 @@ public interface UserService extends UserDetailsService {
     void save(User user);
 
     User findByUsername(String username);
+
+    List<User> getAllUsersWithRoles();
+
+
 }

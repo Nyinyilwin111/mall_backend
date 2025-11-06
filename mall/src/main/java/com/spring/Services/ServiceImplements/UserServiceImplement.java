@@ -61,6 +61,11 @@ public class UserServiceImplement implements UserService {
     }
 
     @Override
+    public List<User> getAllUsersWithRoles() {
+        return userRepository.findAllWithRoles();
+    }
+
+    @Override
     public User findUserById(UUID id) throws UserException {
         Optional<User> user = userRepository.findById(id);
 

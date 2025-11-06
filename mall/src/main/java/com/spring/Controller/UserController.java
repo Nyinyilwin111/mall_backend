@@ -72,4 +72,11 @@ public class UserController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    // Add this to your UserController.java
+    @GetMapping("/all")
+    public ResponseEntity<List<UserDTO>> getAllUsers() {
+        List<User> users = userService.getAllUsersWithRoles(); // Use the new method
+        return new ResponseEntity<>(UserDTO.fromUsersAsList(users), HttpStatus.OK);
+    }
+
 }

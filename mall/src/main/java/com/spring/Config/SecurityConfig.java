@@ -50,6 +50,8 @@ public class SecurityConfig {
 
                         //Branch Management endpoints
                         .requestMatchers("/api/branches/**").permitAll()
+                        .requestMatchers("/api/user-branches/**").permitAll()
+                        .requestMatchers("/api/branches/**").permitAll()
 
                         // Space Management endpoints - ADD THESE
                         .requestMatchers("/api/floors/**").permitAll()

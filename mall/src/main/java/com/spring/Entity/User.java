@@ -1,6 +1,5 @@
 package com.spring.Entity;
 
-
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.UuidGenerator;
@@ -14,6 +13,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "users")
 public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     @UuidGenerator
@@ -25,10 +25,10 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false,unique = true)
+    @Column(nullable = false, unique = true)
     private String email;
 
-    private boolean enabled = true; // Make sure this exists and defaults to true
+    private boolean enabled = true;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -38,7 +38,15 @@ public class User {
     )
     private Set<Role> roles = new HashSet<>();
 
-    // Constructors, getters, setters
+    // ✅ Add Many-to-Many relationship with Branch
+    @ManyToMany
+    @JoinTable(
+            name = "user_branches",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "branch_id")
+    )
+    private Set<Branch> branches = new HashSet<>();
+
     public User() {}
 
     public User(String fullName, String password, String email) {
@@ -48,6 +56,17 @@ public class User {
         this.enabled = true;
     }
 
+    // Utility methods
+    public void addBranch(Branch branch) {
+        branches.add(branch);
+        branch.getUsers().add(this);
+    }
+
+    public void removeBranch(Branch branch) {
+        branches.remove(branch);
+        branch.getUsers().remove(this);
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(email);
@@ -55,15 +74,8 @@ public class User {
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        if (!(obj instanceof User other)) {
-            return false;
-        }
+        if (this == obj) return true;
+        if (!(obj instanceof User other)) return false;
         return Objects.equals(email, other.getEmail());
     }
 
@@ -72,9 +84,7 @@ public class User {
         return "User{" +
                 "id=" + id +
                 ", email='" + email + '\'' +
-                ", password='" + password + '\'' +
                 ", fullName='" + fullName + '\'' +
                 '}';
     }
-
 }
