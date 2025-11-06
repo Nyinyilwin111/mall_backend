@@ -1,107 +1,3 @@
-//package com.spring.Services.ServiceImplements;
-//
-//import com.spring.DTO.request.LeaseRequest;
-//import com.spring.DTO.response.LeaseResponse;
-//import com.spring.Entity.Lease;
-//import com.spring.Entity.Space;
-//import com.spring.Entity.User;
-//import com.spring.Repository.LeaseRepository;
-//import com.spring.Repository.SpaceRepository;
-//import com.spring.Repository.UserRepository;
-//import com.spring.Services.LeaseService;
-//import com.spring.Services.S3Service;
-//import org.springframework.beans.factory.annotation.Autowired;
-//import org.springframework.stereotype.Service;
-//
-//import java.math.BigDecimal;
-//import java.util.List;
-//import java.util.UUID;
-//import java.util.stream.Collectors;
-//
-//@Service
-//public class LeaseServiceImpl implements LeaseService {
-//
-//    @Autowired
-//    private LeaseRepository leaseRepository;
-//
-//    @Autowired
-//    private UserRepository userRepository;
-//
-//    @Autowired
-//    private SpaceRepository spaceRepository;
-//
-//    @Autowired
-//    private S3Service s3Service;
-//
-//    private static final String S3_FOLDER = "lease-contracts";
-//
-//    @Override
-//    public Lease createLease(LeaseRequest request) {
-//        User tenant = userRepository.findById(request.getTenantId())
-//                .orElseThrow(() -> new RuntimeException("Tenant not found with id: " + request.getTenantId()));
-//
-//        Space space = spaceRepository.findById(request.getSpaceId())
-//                .orElseThrow(() -> new RuntimeException("Space not found with id: " + request.getSpaceId()));
-//
-//        Lease lease = new Lease();
-//        lease.setTenant(tenant);
-//        lease.setSpace(space);
-//        lease.setStartDate(request.getStartDate());
-//        lease.setEndDate(request.getEndDate());
-//        lease.setRentAmount(request.getRentAmount());
-//        lease.setDepositAmount(request.getDepositAmount() != null ? request.getDepositAmount() : BigDecimal.ZERO);
-//        lease.setStatus(Lease.LeaseStatus.DRAFT);
-//
-//        // Upload contract to S3
-//        if (request.getContractFile() != null && !request.getContractFile().isEmpty()) {
-//            try {
-//                String s3Url = s3Service.uploadFile(request.getContractFile(), S3_FOLDER);
-//                lease.setContractDocUrl(s3Url);
-//            } catch (Exception e) {
-//                throw new RuntimeException("Failed to upload contract file to S3: " + e.getMessage(), e);
-//            }
-//        }
-//
-//        return leaseRepository.save(lease);
-//    }
-//
-//    @Override
-//    public List<LeaseResponse> getAllLeases() {
-//        return leaseRepository.findAll().stream().map(lease -> {
-//            LeaseResponse dto = new LeaseResponse();
-//            dto.setLeaseId(lease.getLeaseId());
-//            dto.setTenantName(lease.getTenant().getFullName());
-//            dto.setSpaceName(lease.getSpace().getSpaceName());
-//            dto.setSpaceLocation(lease.getSpace().getLocation());
-//            dto.setStartDate(lease.getStartDate());
-//            dto.setEndDate(lease.getEndDate());
-//            dto.setRentAmount(lease.getRentAmount());
-//            dto.setDepositAmount(lease.getDepositAmount());
-//            dto.setStatus(lease.getStatus().name());
-//            dto.setContractDocUrl(lease.getContractDocUrl()); // Add this line
-//            return dto;
-//        }).collect(Collectors.toList());
-//    }
-//
-//    public List<Lease> getLeasesByTenantId(UUID tenantId) {
-//        return leaseRepository.findAllByTenantId(tenantId);
-//    }
-//
-//    public void deleteLease(Long leaseId) {
-//        Lease lease = leaseRepository.findById(leaseId)
-//                .orElseThrow(() -> new RuntimeException("Lease not found with id: " + leaseId));
-//
-//        if (lease.getContractDocUrl() != null && !lease.getContractDocUrl().isEmpty()) {
-//            try {
-//                s3Service.deleteFile(lease.getContractDocUrl());
-//            } catch (Exception e) {
-//                System.err.println("Failed to delete S3 file: " + e.getMessage());
-//            }
-//        }
-//
-//        leaseRepository.delete(lease);
-//    }
-//}
 package com.spring.Services.ServiceImplements;
 
 import com.spring.DTO.request.LeaseRequest;
@@ -206,11 +102,11 @@ public class LeaseServiceImpl implements LeaseService {
                 .orElseThrow(() -> new RuntimeException("Lease not found with id: " + leaseId));
 
         // Update tenant if provided
-//        if (request.getTenantId() != null) {
-//            User tenant = userRepository.findById(request.getTenantId())
-//                    .orElseThrow(() -> new RuntimeException("Tenant not found with id: " + request.getTenantId()));
-//            existingLease.setTenant(tenant);
-//        }
+        if (request.getTenantId() != null) {
+            User tenant = userRepository.findById(request.getTenantId())
+                    .orElseThrow(() -> new RuntimeException("Tenant not found with id: " + request.getTenantId()));
+            existingLease.setTenant(tenant);
+        }
 
         // Update space if provided
         if (request.getSpaceId() != null) {
@@ -231,6 +127,15 @@ public class LeaseServiceImpl implements LeaseService {
         }
         if (request.getDepositAmount() != null) {
             existingLease.setDepositAmount(request.getDepositAmount());
+        }
+         
+        // Update status if provided
+        if (request.getStatus() != null && !request.getStatus().isEmpty()) {
+            try {
+                existingLease.setStatus(Lease.LeaseStatus.valueOf(request.getStatus().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                throw new RuntimeException("Invalid lease status: " + request.getStatus());
+            }
         }
 
         // Handle contract file update

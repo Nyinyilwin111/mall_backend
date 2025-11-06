@@ -4,9 +4,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import com.spring.Entity.Lease;
-import com.spring.Entity.Lease.LeaseStatus;
-import com.spring.Entity.Space;
-
 import lombok.Getter;
 import lombok.Setter;
 

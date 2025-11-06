@@ -17,7 +17,8 @@ public class LeaseRequest {
     private LocalDate endDate;
     private BigDecimal rentAmount;
     private BigDecimal depositAmount;
-
+    private String status;
     // file upload fields
     private MultipartFile contractFile;
+    
 }
