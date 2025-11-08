@@ -4,10 +4,15 @@ import com.spring.DTO.response.BranchResponseDTO;
 import com.spring.DTO.request.CreateBranchRequestDTO;
 import com.spring.DTO.request.UpdateBranchRequestDTO;
 import com.spring.Entity.Branch;
+import com.spring.Entity.User;
 import com.spring.Repository.BranchRepository;
+import com.spring.Repository.UserRepository;
 import com.spring.Services.BranchService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -16,6 +21,7 @@ import java.util.stream.Collectors;
 public class BranchServiceImpl implements BranchService {
 
     private final BranchRepository branchRepository;
+    private final UserRepository userRepository; // Add this
 
     @Override
     public List<BranchResponseDTO> getAllBranches() {
@@ -23,6 +29,39 @@ public class BranchServiceImpl implements BranchService {
                 .stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<BranchResponseDTO> getBranchesForCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+
+        // Use the new repository method to fetch user with roles and branches
+        User user = userRepository.findByEmailWithRolesAndBranches(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Check if user has tenant role
+        boolean isTenant = user.getRoles().stream()
+                .anyMatch(role -> "TENANT".equalsIgnoreCase(role.getName()));
+
+        System.out.println("User " + username + " is tenant: " + isTenant);
+        System.out.println("User has " + user.getBranches().size() + " assigned branches");
+
+        if (isTenant) {
+            // Return only branches assigned to this tenant
+            List<BranchResponseDTO> tenantBranches = user.getBranches().stream()
+                    .map(this::convertToResponse)
+                    .collect(Collectors.toList());
+            System.out.println("Returning " + tenantBranches.size() + " branches for tenant");
+            return tenantBranches;
+        } else {
+            // Return all branches for admin/manager users
+            List<BranchResponseDTO> allBranches = branchRepository.findAll().stream()
+                    .map(this::convertToResponse)
+                    .collect(Collectors.toList());
+            System.out.println("Returning " + allBranches.size() + " branches for admin/manager");
+            return allBranches;
+        }
     }
 
     @Override

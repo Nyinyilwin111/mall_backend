@@ -31,6 +31,12 @@ public class BranchController {
         return ResponseEntity.ok(ApiResponse.success("Branch retrieved successfully", branch));
     }
 
+    @GetMapping("/my-branches")
+    public ResponseEntity<ApiResponse<List<BranchResponseDTO>>> getMyBranches() {
+        List<BranchResponseDTO> branches = branchService.getBranchesForCurrentUser();
+        return ResponseEntity.ok(ApiResponse.success("Branches retrieved successfully", branches));
+    }
+
     // ✅ Change here
     @PostMapping("/create")
     public ResponseEntity<ApiResponse<BranchResponseDTO>> createBranch(
@@ -57,4 +63,5 @@ public class BranchController {
         branchService.deleteBranch(id);
         return ResponseEntity.ok(ApiResponse.success("Branch deleted successfully"));
     }
+
 }

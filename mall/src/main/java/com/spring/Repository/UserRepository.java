@@ -13,7 +13,6 @@ import java.util.UUID;
 @Repository
 public interface UserRepository extends JpaRepository<User, UUID> {
 
-
     // Match the entity field "fullName" (not username)
     User findByFullName(String fullName);
 
@@ -37,4 +36,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.roles")
     List<User> findAllWithRoles();
 
+    // Add this method to fetch user with roles and branches by email
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.roles LEFT JOIN FETCH u.branches WHERE u.email = :email")
+    Optional<User> findByEmailWithRolesAndBranches(@Param("email") String email);
 }

@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface BranchService {
     List<BranchResponseDTO> getAllBranches();
+    List<BranchResponseDTO> getBranchesForCurrentUser(); // Add this method
     BranchResponseDTO getBranchById(Long id);
     BranchResponseDTO createBranch(CreateBranchRequestDTO request);
     BranchResponseDTO updateBranch(Long id, UpdateBranchRequestDTO request);
