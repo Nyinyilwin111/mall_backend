@@ -14,8 +14,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -79,4 +82,26 @@ public class UserController {
         return new ResponseEntity<>(UserDTO.fromUsersAsList(users), HttpStatus.OK);
     }
 
+    @GetMapping("/debug-all-users")
+    public ResponseEntity<List<Map<String, Object>>> debugAllUsers() {
+        List<User> users = userService.findAll();
+        List<Map<String, Object>> userInfo = users.stream()
+                .map(user -> {
+                    Map<String, Object> info = new HashMap<>();
+                    info.put("id", user.getId());
+                    info.put("email", user.getEmail());
+                    info.put("fullName", user.getFullName());
+                    info.put("enabled", user.isEnabled());
+                    info.put("roles", user.getRoles().stream()
+                            .map(role -> role.getName())
+                            .collect(Collectors.toList()));
+                    info.put("branches", user.getBranches().stream()
+                            .map(branch -> branch.getName())
+                            .collect(Collectors.toList()));
+                    return info;
+                })
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(userInfo);
+    }
 }

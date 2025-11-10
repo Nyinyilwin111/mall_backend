@@ -32,4 +32,5 @@ public interface UserService extends UserDetailsService {
     List<User> getAllUsersWithRoles();
 
 
+    List<User> findAll();
 }

@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -32,10 +34,11 @@ public class BranchController {
     }
 
     @GetMapping("/my-branches")
-    public ResponseEntity<ApiResponse<List<BranchResponseDTO>>> getMyBranches() {
+    public ResponseEntity<ApiResponse<List<BranchResponseDTO>>> getMyBranches(Principal principal) {
         List<BranchResponseDTO> branches = branchService.getBranchesForCurrentUser();
         return ResponseEntity.ok(ApiResponse.success("Branches retrieved successfully", branches));
     }
+
 
     // ✅ Change here
     @PostMapping("/create")
@@ -63,5 +66,6 @@ public class BranchController {
         branchService.deleteBranch(id);
         return ResponseEntity.ok(ApiResponse.success("Branch deleted successfully"));
     }
+
 
 }

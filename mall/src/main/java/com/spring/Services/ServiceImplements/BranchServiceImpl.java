@@ -14,6 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,18 +34,52 @@ public class BranchServiceImpl implements BranchService {
 
     @Override
     public List<BranchResponseDTO> getBranchesForCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String username = authentication.getName();
 
-        // Use the new repository method to fetch user with roles and branches
-        User user = userRepository.findByEmailWithRolesAndBranches(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+            System.out.println("=== DEBUG: getBranchesForCurrentUser ===");
+            System.out.println("Authentication: " + authentication);
+            System.out.println("Username from token: " + username);
+            System.out.println("Principal: " + authentication.getPrincipal());
+            System.out.println("Authorities: " + authentication.getAuthorities());
 
+            // Try to find user by username (which might be the email)
+            Optional<User> userOptional = userRepository.findByEmail(username);
+
+            if (userOptional.isEmpty()) {
+                System.out.println("User not found by email: " + username);
+
+                // Try to find by fullName as fallback
+                User userByFullName = userRepository.findByFullName(username);
+                if (userByFullName != null) {
+                    System.out.println("User found by fullName: " + username);
+                    return getUserBranches(userByFullName);
+                } else {
+                    System.out.println("User not found by fullName either: " + username);
+                    throw new RuntimeException("User not found: " + username);
+                }
+            }
+
+            User user = userOptional.get();
+            System.out.println("User found: " + user.getEmail() + ", fullName: " + user.getFullName());
+
+            return getUserBranches(user);
+
+        } catch (Exception e) {
+            System.err.println("Error in getBranchesForCurrentUser: " + e.getMessage());
+            e.printStackTrace();
+            // Fallback to empty list instead of throwing exception
+            return List.of();
+        }
+    }
+
+    private List<BranchResponseDTO> getUserBranches(User user) {
         // Check if user has tenant role
         boolean isTenant = user.getRoles().stream()
                 .anyMatch(role -> "TENANT".equalsIgnoreCase(role.getName()));
 
-        System.out.println("User " + username + " is tenant: " + isTenant);
+        System.out.println("User " + user.getEmail() + " is tenant: " + isTenant);
         System.out.println("User has " + user.getBranches().size() + " assigned branches");
 
         if (isTenant) {
