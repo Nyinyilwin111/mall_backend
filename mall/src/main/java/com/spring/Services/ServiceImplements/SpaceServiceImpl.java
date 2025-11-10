@@ -12,7 +12,7 @@ import com.spring.Entity.Floor;
 import com.spring.Repository.SpaceRepository;
 import com.spring.Repository.SpaceTypeRepository;
 import com.spring.Repository.FloorRepository;
-import com.spring.Services.S3Service;
+import com.spring.Services.LocalStorageService; // Changed from S3Service
 import com.spring.Services.SpaceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,7 +38,7 @@ public class SpaceServiceImpl implements SpaceService {
     private FloorRepository floorRepository;
 
     @Autowired
-    private S3Service s3Service;
+    private LocalStorageService localStorageService; // Changed from S3Service
 
     private SpaceResponseDTO convertToDTO(Space space) {
         SpaceResponseDTO dto = new SpaceResponseDTO();
@@ -100,7 +100,7 @@ public class SpaceServiceImpl implements SpaceService {
         }
 
         if (spaceRequestDTO.getImages() != null && !spaceRequestDTO.getImages().isEmpty()) {
-            List<String> imageUrls = s3Service.uploadMultipleFiles(spaceRequestDTO.getImages());
+            List<String> imageUrls = uploadMultipleFiles(spaceRequestDTO.getImages()); // Updated method
             if (imageUrls.size() > 4) {
                 imageUrls = imageUrls.subList(0, 4);
             }
@@ -157,7 +157,7 @@ public class SpaceServiceImpl implements SpaceService {
             }
 
             if (spaceUpdateRequestDTO.getNewImages() != null && !spaceUpdateRequestDTO.getNewImages().isEmpty()) {
-                List<String> newImageUrls = s3Service.uploadMultipleFiles(spaceUpdateRequestDTO.getNewImages());
+                List<String> newImageUrls = uploadMultipleFiles(spaceUpdateRequestDTO.getNewImages()); // Updated method
                 updatedImages.addAll(newImageUrls);
             }
 
@@ -181,7 +181,7 @@ public class SpaceServiceImpl implements SpaceService {
             Space space = spaceOptional.get();
 
             if (space.getImages() != null && !space.getImages().isEmpty()) {
-                s3Service.deleteMultipleFiles(space.getImages());
+                deleteMultipleFiles(space.getImages()); // Updated method
             }
 
             spaceRepository.deleteById(id);
@@ -198,7 +198,7 @@ public class SpaceServiceImpl implements SpaceService {
             Space space = spaceOptional.get();
 
             if (space.getImages().remove(imageUrl)) {
-                s3Service.deleteFile(imageUrl);
+                localStorageService.deleteFile(imageUrl); // Updated method
                 spaceRepository.save(space);
             }
         } else {
@@ -220,5 +220,25 @@ public class SpaceServiceImpl implements SpaceService {
                 .stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+    }
+
+    // New helper methods for local storage
+    private List<String> uploadMultipleFiles(List<MultipartFile> files) {
+        List<String> fileUrls = new ArrayList<>();
+        for (MultipartFile file : files) {
+            if (!file.isEmpty()) {
+                String fileUrl = localStorageService.saveFile(file);
+                if (fileUrl != null) {
+                    fileUrls.add(fileUrl);
+                }
+            }
+        }
+        return fileUrls;
+    }
+
+    private void deleteMultipleFiles(List<String> fileUrls) {
+        for (String fileUrl : fileUrls) {
+            localStorageService.deleteFile(fileUrl);
+        }
     }
 }
