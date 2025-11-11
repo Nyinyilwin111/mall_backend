@@ -3,8 +3,9 @@ package com.spring.Controller;
 import com.spring.DTO.response.JwtResponse;
 import com.spring.DTO.request.LoginRequest;
 import com.spring.DTO.request.SignupRequest;
+import com.spring.Entity.Role;
 import com.spring.Entity.User;
-import com.spring.Repository.UserRepository;
+import com.spring.Repository.RoleRepository;
 import com.spring.Services.UserService;
 import com.spring.Util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,11 +28,14 @@ public class AuthController {
     private AuthenticationManager authenticationManager;
 
     @Autowired
-    UserService userService;
-//    private UserRepository userRepository;
+    private UserService userService;
+
+    @Autowired  // ✅ Add this annotation
+    private RoleRepository roleRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -83,10 +87,19 @@ public class AuthController {
             user.setFullName(signUpRequest.getFullName());
             user.setEmail(signUpRequest.getEmail());
             user.setPassword(passwordEncoder.encode(signUpRequest.getPassword()));
-            user.setEnabled(true); // Make sure this is set
+            user.setEnabled(true);
+
+            // ✅ Assign default role (now roleRepository is properly autowired)
+            Role guestRole = roleRepository.findByName("GUEST")
+                    .orElseGet(() -> {
+                        Role newRole = new Role();
+                        newRole.setName("GUEST");
+                        return roleRepository.save(newRole);
+                    });
+            user.getRoles().add(guestRole);
 
             userService.save(user);
-            System.out.println("User registered successfully: " + signUpRequest.getFullName());
+            System.out.println("User registered successfully: " + signUpRequest.getFullName() + " with GUEST role");
 
             return ResponseEntity.ok(new JwtResponse(null, user.getId(), user.getFullName(), user.getEmail(), user.getRoles()));
 
@@ -96,4 +109,5 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Error during registration: " + e.getMessage());
         }
     }
+
 }

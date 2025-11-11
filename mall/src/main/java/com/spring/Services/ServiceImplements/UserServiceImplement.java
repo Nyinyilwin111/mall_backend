@@ -144,4 +144,10 @@ public class UserServiceImplement implements UserService {
     public User findByUsername(String username) {
         return userRepository.findByFullName(username);
     }
+
+
+    @Override
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
 }

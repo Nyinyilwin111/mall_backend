@@ -38,6 +38,7 @@
 //        Permission spaceManagement = createPermissionIfNotFound("SPACE_MANAGEMENT", "Manage spaces");
 //        Permission bookingManagement = createPermissionIfNotFound("BOOKING_MANAGEMENT", "Manage booking");
 //        Permission roleManagement = createPermissionIfNotFound("ROLE_MANAGEMENT", "Manage roles and permissions");
+//        Permission SpaceRead = createPermissionIfNotFound("SPACE_READ", "Read space information");
 //
 //        // Create roles
 //        Role ceoRole = createRoleIfNotFound("CEO", "Chief Executive Officer with full access",
@@ -49,10 +50,14 @@
 //        Role staffRole = createRoleIfNotFound("STAFF", "Store Staff",
 //                new HashSet<>(Arrays.asList(userRead, bookingManagement)));
 //
+//        Role GuestRole = createRoleIfNotFound("GUEST", "Guest",
+//                new HashSet<>(Arrays.asList(SpaceRead,userWrite)));
+//
 //        // Create CEO user
 //        createUserIfNotFound("ceo", "ceo@mall.com", "ceo123", ceoRole);
 //        createUserIfNotFound("manager", "manager@mall.com", "manager123", managerRole);
 //        createUserIfNotFound("staff", "staff@mall.com", "staff123", staffRole);
+//        createUserIfNotFound("guest", "guest@gmail.com", "guest123", GuestRole);
 //    }
 //
 //    private Permission createPermissionIfNotFound(String name, String description) {
