@@ -1,6 +1,9 @@
 package com.spring.Services.ServiceImplements;
 
 import com.spring.DTO.request.UpdateUserRequestDTO;
+import com.spring.DTO.response.BranchResponseDTO;
+import com.spring.DTO.response.UserResponseDTO;
+import com.spring.Entity.Branch;
 import com.spring.Entity.User;
 import com.spring.Exceptions.UserException;
 import com.spring.Repository.UserRepository;
@@ -14,6 +17,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.security.Principal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -81,24 +85,28 @@ public class UserServiceImplement implements UserService {
         throw new UserException("User not found with id " + id);
     }
 
+    // In UserServiceImplement.java - FIX THIS METHOD
     @Override
-    public User findUserByProfile(String jwt) throws UserException {
-        // Extract name from JWT token
-        String name = jwtUtil.extractUsername(jwt);
+    public User findUserByProfile(String username) throws UserException {
+        System.out.println("🔍 Finding user by profile: " + username);
 
-        if (name == null || name.isEmpty()) {
-            throw new BadCredentialsException("Invalid token");
+        // Try to find by email first
+        Optional<User> userByEmail = userRepository.findByEmail(username);
+        if (userByEmail.isPresent()) {
+            System.out.println("✅ User found by email: " + username);
+            return userByEmail.get();
         }
 
-        // Find user by name
-        User user = userRepository.findByFullName(name);
-        if (user != null) {
-            return user;
+        // If not found by email, try by username/fullName
+        User userByFullName = userRepository.findByFullName(username);
+        if (userByFullName != null) {
+            System.out.println("✅ User found by fullName: " + username);
+            return userByFullName;
         }
 
-        throw new UserException("User not found with email " + name);
+        System.out.println("❌ User not found: " + username);
+        throw new UserException("User not found: " + username);
     }
-
 
     @Override
     public User updateUser(UUID id, UpdateUserRequestDTO request) throws UserException {
@@ -149,5 +157,49 @@ public class UserServiceImplement implements UserService {
     @Override
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmail(email);
+    }
+
+    @Override
+    public UserResponseDTO getCurrentUserInfo(Principal principal) {
+        String username = principal.getName();
+        User user = userRepository.findByEmailWithRolesAndBranches(username)
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
+
+        return convertToUserResponseDTO(user);
+    }
+
+    // Add this method to your UserServiceImpl.java
+    private UserResponseDTO convertToUserResponseDTO(User user) {
+        UserResponseDTO userResponseDTO = new UserResponseDTO();
+        userResponseDTO.setId(user.getId());
+        userResponseDTO.setFullName(user.getFullName());
+        userResponseDTO.setEmail(user.getEmail());
+        userResponseDTO.setEnabled(user.isEnabled());
+
+        // Convert roles
+        Set<String> roleNames = user.getRoles().stream()
+                .map(role -> role.getName()) // Assuming Role entity has getName() method
+                .collect(Collectors.toSet());
+        userResponseDTO.setRoles(roleNames);
+
+        // Convert branches
+        Set<BranchResponseDTO> branchDTOs = user.getBranches().stream()
+                .map(this::convertToBranchResponseDTO)
+                .collect(Collectors.toSet());
+        userResponseDTO.setBranches(branchDTOs);
+
+        return userResponseDTO;
+    }
+
+    // Also add this helper method if you don't have it
+    private BranchResponseDTO convertToBranchResponseDTO(Branch branch) {
+        BranchResponseDTO branchResponseDTO = new BranchResponseDTO();
+        branchResponseDTO.setId(branch.getId());
+        branchResponseDTO.setName(branch.getName());
+        branchResponseDTO.setAddress(branch.getAddress());
+        branchResponseDTO.setPhoneNumber(branch.getPhoneNumber());
+        branchResponseDTO.setCreatedAt(branch.getCreatedAt());
+        branchResponseDTO.setUpdatedAt(branch.getUpdatedAt());
+        return branchResponseDTO;
     }
 }

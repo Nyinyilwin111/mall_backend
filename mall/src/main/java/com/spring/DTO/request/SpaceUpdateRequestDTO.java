@@ -13,9 +13,14 @@ import java.util.UUID;
 @Data
 public class SpaceUpdateRequestDTO {
 
+    private String spaceCode; // ADD THIS FIELD - Can be updated
+
     private UUID spaceTypeId;
 
     private Integer floorId;
+
+    @Positive(message = "Price must be positive")
+    private Double price; // ADD THIS FIELD
 
     @NotBlank(message = "Location is required")
     private String location;
@@ -31,5 +36,7 @@ public class SpaceUpdateRequestDTO {
     private List<MultipartFile> newImages;
 
     private List<String> existingImages;
+
+
 
 }

@@ -7,5 +7,5 @@ import lombok.Data;
 public class FloorResponseDTO {
     private Integer floorId;
     private String level;
-    private Integer branchBranchId;
+    private long branchBranchId;
 }

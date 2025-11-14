@@ -1,6 +1,5 @@
 package com.spring.Entity;
 
-
 import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
@@ -10,6 +9,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+
 @Data
 @Entity
 @Table(name = "space")
@@ -18,6 +18,9 @@ public class Space {
     @Id
     @Column(name = "space_id")
     private UUID spaceId;
+
+    @Column(name = "space_code", unique = true, nullable = false, length = 50)
+    private String spaceCode; // ADD THIS FIELD - Unique identifier for the space
 
     @ManyToOne
     @JoinColumn(name = "space_type_id")
@@ -28,6 +31,9 @@ public class Space {
 
     @Column(name = "size_sqft", scale = 2)
     private Double sizeSqft;
+
+    @Column(name = "price", scale = 2) // ADD THIS FIELD - Price of the space
+    private Double price;
 
     @Column(columnDefinition = "JSON")
     private String amenities;
@@ -59,21 +65,19 @@ public class Space {
         this.status = SpaceStatus.VACANT;
     }
 
-    // Add SpaceStatus enum
-    public enum SpaceStatus {
-        VACANT, OCCUPIED, MAINTENANCE, RESERVED
-    }
-
-
-
-
-    public Space(SpaceType spaceType, String location, Double sizeSqft, String amenities, Floor floor) {
+    public Space(String spaceCode, SpaceType spaceType, String location, Double sizeSqft, Double price, String amenities, Floor floor) {
         this();
+        this.spaceCode = spaceCode;
         this.spaceType = spaceType;
         this.location = location;
         this.sizeSqft = sizeSqft;
+        this.price = price;
         this.amenities = amenities;
         this.floor = floor;
     }
 
+    // Add SpaceStatus enum
+    public enum SpaceStatus {
+        VACANT, OCCUPIED, MAINTENANCE, RESERVED
     }
+}

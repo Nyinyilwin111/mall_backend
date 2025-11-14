@@ -11,9 +11,11 @@ public interface SpaceService {
     SpaceResponseDTO createSpace(SpaceRequestDTO spaceRequestDTO);
     List<SpaceResponseDTO> getAllSpaces();
     SpaceResponseDTO getSpaceById(UUID id);
-    SpaceResponseDTO updateSpace(UUID id, SpaceUpdateRequestDTO spaceUpdateRequestDTO); // Updated this method
+    SpaceResponseDTO getSpaceByCode(String spaceCode); // ADD THIS METHOD
+    SpaceResponseDTO updateSpace(UUID id, SpaceUpdateRequestDTO spaceUpdateRequestDTO);
     boolean deleteSpace(UUID id);
     List<SpaceResponseDTO> getSpacesByFloorId(Integer floorId);
     List<SpaceResponseDTO> getSpacesBySpaceTypeId(UUID spaceTypeId);
     void deleteSpaceImage(UUID spaceId, String imageUrl);
+    boolean spaceCodeExists(String spaceCode); // ADD THIS METHOD
 }

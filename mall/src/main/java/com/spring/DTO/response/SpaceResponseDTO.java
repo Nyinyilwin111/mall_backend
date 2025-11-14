@@ -10,9 +10,11 @@ import java.util.UUID;
 @Data
 public class SpaceResponseDTO {
     private UUID spaceId;
+    private String spaceCode; // ADD THIS FIELD
     private SpaceTypeResponseDTO spaceType;
     private String location;
     private Double sizeSqft;
+    private Double price; // ADD THIS FIELD
     private String amenities;
     private List<String> images;
     private SpaceStatus status;

@@ -5,11 +5,14 @@ import com.spring.DTO.request.SpaceUpdateRequestDTO;
 import com.spring.DTO.response.SpaceResponseDTO;
 import com.spring.Services.SpaceService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -102,5 +105,24 @@ public class SpaceController {
     public ResponseEntity<List<SpaceResponseDTO>> getSpacesBySpaceTypeId(@PathVariable UUID spaceTypeId) {
         List<SpaceResponseDTO> spaces = spaceService.getSpacesBySpaceTypeId(spaceTypeId);
         return ResponseEntity.ok(spaces);
+    }
+
+    // Add these methods to your SpaceController
+
+    @GetMapping("/code/{spaceCode}")
+    public ResponseEntity<SpaceResponseDTO> getSpaceByCode(@PathVariable String spaceCode) {
+        SpaceResponseDTO space = spaceService.getSpaceByCode(spaceCode);
+        if (space != null) {
+            return new ResponseEntity<>(space, HttpStatus.OK);
+        }
+        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+    }
+
+    @GetMapping("/check-code/{spaceCode}")
+    public ResponseEntity<Map<String, Boolean>> checkSpaceCodeExists(@PathVariable String spaceCode) {
+        boolean exists = spaceService.spaceCodeExists(spaceCode);
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("exists", exists);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

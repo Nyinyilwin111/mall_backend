@@ -12,9 +12,18 @@ import java.util.UUID;
 
 @Data
 public class SpaceRequestDTO {
+
+    @NotBlank(message = "Space code is required")
+    private String spaceCode; // ADD THIS FIELD
+
     private UUID spaceTypeId;
     private String location;
     private Double sizeSqft;
+
+    @NotNull(message = "Price is required")
+    @Positive(message = "Price must be positive")
+    private Double price; // ADD THIS FIELD
+
     private String amenities;
     private List<MultipartFile> images;
     private Integer floorId;
@@ -40,5 +49,11 @@ public class SpaceRequestDTO {
     @NotNull(message = "Floor ID is required")
     public Integer getFloorId() {
         return floorId;
+    }
+
+    // ADD GETTER FOR SPACE CODE
+    @NotBlank(message = "Space code is required")
+    public String getSpaceCode() {
+        return spaceCode;
     }
 }

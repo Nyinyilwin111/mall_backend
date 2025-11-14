@@ -2,8 +2,10 @@ package com.spring.Controller;
 
 import com.spring.Config.JwtConstants;
 import com.spring.DTO.request.UpdateUserRequestDTO;
+import com.spring.DTO.response.ApiResponse;
 import com.spring.DTO.response.ApiResponseDTO;
 import com.spring.DTO.response.UserDTO;
+import com.spring.DTO.response.UserResponseDTO;
 import com.spring.Entity.User;
 import com.spring.Exceptions.UserException;
 import com.spring.Services.UserService;
@@ -14,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -104,4 +107,17 @@ public class UserController {
 
         return ResponseEntity.ok(userInfo);
     }
+
+    // In UserController.java - Fixed version
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<UserResponseDTO>> getCurrentUserInfo(Principal principal) {
+        try {
+            UserResponseDTO userInfo = userService.getCurrentUserInfo(principal);
+            return ResponseEntity.ok(ApiResponse.success("User info retrieved successfully", userInfo));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Failed to retrieve user info: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
+    }
+
 }

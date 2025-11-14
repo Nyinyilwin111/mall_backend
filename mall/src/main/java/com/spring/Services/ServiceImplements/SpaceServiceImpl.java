@@ -12,7 +12,7 @@ import com.spring.Entity.Floor;
 import com.spring.Repository.SpaceRepository;
 import com.spring.Repository.SpaceTypeRepository;
 import com.spring.Repository.FloorRepository;
-import com.spring.Services.LocalStorageService; // Changed from S3Service
+import com.spring.Services.LocalStorageService;
 import com.spring.Services.SpaceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,13 +38,15 @@ public class SpaceServiceImpl implements SpaceService {
     private FloorRepository floorRepository;
 
     @Autowired
-    private LocalStorageService localStorageService; // Changed from S3Service
+    private LocalStorageService localStorageService;
 
     private SpaceResponseDTO convertToDTO(Space space) {
         SpaceResponseDTO dto = new SpaceResponseDTO();
         dto.setSpaceId(space.getSpaceId());
+        dto.setSpaceCode(space.getSpaceCode()); // ADD THIS
         dto.setLocation(space.getLocation());
         dto.setSizeSqft(space.getSizeSqft());
+        dto.setPrice(space.getPrice()); // ADD THIS
         dto.setAmenities(space.getAmenities());
         dto.setCreatedAt(space.getCreatedAt());
         dto.setUpdatedAt(space.getUpdatedAt());
@@ -79,6 +81,11 @@ public class SpaceServiceImpl implements SpaceService {
     @Override
     @Transactional
     public SpaceResponseDTO createSpace(SpaceRequestDTO spaceRequestDTO) {
+        // CHECK IF SPACE CODE ALREADY EXISTS
+        if (spaceRepository.existsBySpaceCode(spaceRequestDTO.getSpaceCode())) {
+            throw new RuntimeException("Space code '" + spaceRequestDTO.getSpaceCode() + "' already exists");
+        }
+
         Optional<SpaceType> spaceType = spaceTypeRepository.findById(spaceRequestDTO.getSpaceTypeId());
         Optional<Floor> floor = floorRepository.findById(spaceRequestDTO.getFloorId());
 
@@ -87,9 +94,11 @@ public class SpaceServiceImpl implements SpaceService {
         }
 
         Space space = new Space();
+        space.setSpaceCode(spaceRequestDTO.getSpaceCode()); // SET SPACE CODE
         space.setSpaceType(spaceType.get());
         space.setLocation(spaceRequestDTO.getLocation());
         space.setSizeSqft(spaceRequestDTO.getSizeSqft());
+        space.setPrice(spaceRequestDTO.getPrice()); // SET PRICE
         space.setAmenities(spaceRequestDTO.getAmenities());
         space.setFloor(floor.get());
 
@@ -100,7 +109,7 @@ public class SpaceServiceImpl implements SpaceService {
         }
 
         if (spaceRequestDTO.getImages() != null && !spaceRequestDTO.getImages().isEmpty()) {
-            List<String> imageUrls = uploadMultipleFiles(spaceRequestDTO.getImages()); // Updated method
+            List<String> imageUrls = uploadMultipleFiles(spaceRequestDTO.getImages());
             if (imageUrls.size() > 4) {
                 imageUrls = imageUrls.subList(0, 4);
             }
@@ -125,6 +134,12 @@ public class SpaceServiceImpl implements SpaceService {
         return space.map(this::convertToDTO).orElse(null);
     }
 
+    // ADD THIS METHOD TO GET SPACE BY SPACE CODE
+    public SpaceResponseDTO getSpaceByCode(String spaceCode) {
+        Optional<Space> space = spaceRepository.findBySpaceCode(spaceCode);
+        return space.map(this::convertToDTO).orElse(null);
+    }
+
     @Override
     @Transactional
     public SpaceResponseDTO updateSpace(UUID id, SpaceUpdateRequestDTO spaceUpdateRequestDTO) {
@@ -132,8 +147,19 @@ public class SpaceServiceImpl implements SpaceService {
         if (optionalSpace.isPresent()) {
             Space space = optionalSpace.get();
 
+            // CHECK IF SPACE CODE IS BEING UPDATED AND IF IT'S UNIQUE
+            if (spaceUpdateRequestDTO.getSpaceCode() != null &&
+                    !spaceUpdateRequestDTO.getSpaceCode().equals(space.getSpaceCode())) {
+
+                if (spaceRepository.existsBySpaceCodeAndSpaceIdNot(spaceUpdateRequestDTO.getSpaceCode(), id)) {
+                    throw new RuntimeException("Space code '" + spaceUpdateRequestDTO.getSpaceCode() + "' already exists");
+                }
+                space.setSpaceCode(spaceUpdateRequestDTO.getSpaceCode());
+            }
+
             space.setLocation(spaceUpdateRequestDTO.getLocation());
             space.setSizeSqft(spaceUpdateRequestDTO.getSizeSqft());
+            space.setPrice(spaceUpdateRequestDTO.getPrice()); // UPDATE PRICE
             space.setAmenities(spaceUpdateRequestDTO.getAmenities());
 
             if (spaceUpdateRequestDTO.getStatus() != null) {
@@ -157,7 +183,7 @@ public class SpaceServiceImpl implements SpaceService {
             }
 
             if (spaceUpdateRequestDTO.getNewImages() != null && !spaceUpdateRequestDTO.getNewImages().isEmpty()) {
-                List<String> newImageUrls = uploadMultipleFiles(spaceUpdateRequestDTO.getNewImages()); // Updated method
+                List<String> newImageUrls = uploadMultipleFiles(spaceUpdateRequestDTO.getNewImages());
                 updatedImages.addAll(newImageUrls);
             }
 
@@ -181,7 +207,7 @@ public class SpaceServiceImpl implements SpaceService {
             Space space = spaceOptional.get();
 
             if (space.getImages() != null && !space.getImages().isEmpty()) {
-                deleteMultipleFiles(space.getImages()); // Updated method
+                deleteMultipleFiles(space.getImages());
             }
 
             spaceRepository.deleteById(id);
@@ -198,7 +224,7 @@ public class SpaceServiceImpl implements SpaceService {
             Space space = spaceOptional.get();
 
             if (space.getImages().remove(imageUrl)) {
-                localStorageService.deleteFile(imageUrl); // Updated method
+                localStorageService.deleteFile(imageUrl);
                 spaceRepository.save(space);
             }
         } else {
@@ -222,7 +248,12 @@ public class SpaceServiceImpl implements SpaceService {
                 .collect(Collectors.toList());
     }
 
-    // New helper methods for local storage
+    // ADD THIS METHOD TO CHECK IF SPACE CODE EXISTS
+    public boolean spaceCodeExists(String spaceCode) {
+        return spaceRepository.existsBySpaceCode(spaceCode);
+    }
+
+    // Helper methods for local storage
     private List<String> uploadMultipleFiles(List<MultipartFile> files) {
         List<String> fileUrls = new ArrayList<>();
         for (MultipartFile file : files) {

@@ -1,10 +1,12 @@
 package com.spring.Services;
 
 import com.spring.DTO.request.UpdateUserRequestDTO;
+import com.spring.DTO.response.UserResponseDTO;
 import com.spring.Entity.User;
 import com.spring.Exceptions.UserException;
 import org.springframework.security.core.userdetails.UserDetailsService;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,6 +33,7 @@ public interface UserService extends UserDetailsService {
 
     List<User> getAllUsersWithRoles();
 
+    UserResponseDTO getCurrentUserInfo(Principal principal);
 
     List<User> findAll();
 
