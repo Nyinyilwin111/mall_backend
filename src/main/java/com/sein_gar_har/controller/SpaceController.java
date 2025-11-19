@@ -125,4 +125,14 @@ public class SpaceController {
         response.put("exists", exists);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
+
+    @GetMapping("/{spaceId}/with-branch")
+    public ResponseEntity<Map<String, Object>> getSpaceWithBranchData(@PathVariable UUID spaceId) {
+        try {
+            Map<String, Object> spaceWithBranch = spaceService.getSpaceWithBranchData(spaceId);
+            return ResponseEntity.ok(spaceWithBranch);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

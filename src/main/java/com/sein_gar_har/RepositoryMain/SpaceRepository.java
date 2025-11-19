@@ -1,5 +1,6 @@
 package com.sein_gar_har.RepositoryMain;
 
+import com.sein_gar_har.dto.request.SpaceWithBranchDTO;
 import com.sein_gar_har.entity.Space;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -28,4 +29,6 @@ public interface SpaceRepository extends JpaRepository<Space, UUID> {
     // Check if space code exists (excluding current space for updates)
     @Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END FROM Space s WHERE LOWER(s.spaceCode) = LOWER(:spaceCode) AND s.spaceId != :spaceId")
     boolean existsBySpaceCodeAndSpaceIdNot(@Param("spaceCode") String spaceCode, @Param("spaceId") UUID spaceId);
+
+
 }

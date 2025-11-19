@@ -154,9 +154,9 @@ public class PushController {
 
             String jsonBody = String.format(
                     "{\"title\":\"%s\",\"body\":\"%s\",\"icon\":\"/sgh.png\",\"badge\":\"/sgh.png\",\"url\":\"/notifications\",\"timestamp\":\"%s\"}",
-                    title.replace("\"", "\\\""),
-                    body.replace("\"", "\\\""),
-                    LocalDateTime.now().toString()
+                    sanitize(title),
+                    sanitize(body),
+                    sanitize(LocalDateTime.now().toString())
             );
 
             int sentCount = 0;
@@ -249,9 +249,9 @@ public class PushController {
 
             String jsonBody = String.format(
                     "{\"title\":\"%s\",\"body\":\"%s\",\"icon\":\"/sgh.png\",\"badge\":\"/sgh.png\",\"url\":\"/notifications\",\"timestamp\":\"%s\"}",
-                    title.replace("\"", "\\\""),
-                    body.replace("\"", "\\\""),
-                    LocalDateTime.now().toString()
+                    sanitize(title),
+                    sanitize(body),
+                    sanitize(LocalDateTime.now().toString())
             );
 
             for (User user : branchUsers) {
@@ -370,9 +370,9 @@ public class PushController {
 
                 String jsonBody = String.format(
                         "{\"title\":\"%s\",\"body\":\"%s\",\"icon\":\"/sgh.png\",\"badge\":\"/sgh.png\",\"url\":\"/notifications\",\"timestamp\":\"%s\"}",
-                        title.replace("\"", "\\\""),
-                        body.replace("\"", "\\\""),
-                        LocalDateTime.now().toString()
+                        sanitize(title),
+                        sanitize(body),
+                        sanitize(LocalDateTime.now().toString())
                 );
 
                 for (SubscriptionEntity sub : user.getSubscriptions()) {
@@ -511,8 +511,6 @@ public class PushController {
     // NEW: Send to Role endpoint
     @PostMapping("/sendToRole")
     public ResponseEntity<Map<String, Object>> sendToRole(@RequestBody RoleNotificationRequest request) {
-        System.out.println("🎯 Reached sendToRole endpoint for role: " + request.getRole());
-
         Map<String, Object> response = new HashMap<>();
         try {
             // Get all users with the specified role
@@ -536,12 +534,46 @@ public class PushController {
             pushService.setPublicKey(Utils.loadPublicKey(publicKey));
             pushService.setSubject("mailto:admin@seingahar.com");
 
+            // FIXED: Include ALL data in JSON body
             String jsonBody = String.format(
-                    "{\"title\":\"%s\",\"body\":\"%s\",\"icon\":\"/sgh.png\",\"badge\":\"/sgh.png\",\"url\":\"/notifications\",\"timestamp\":\"%s\"}",
-                    request.getTitle().replace("\"", "\\\""),
-                    request.getBody().replace("\"", "\\\""),
+                    "{" +
+                            "\"title\":\"%s\"," +
+                            "\"body\":\"%s\"," +
+                            "\"role\":\"%s\"," +
+                            "\"type\":\"%s\"," +
+                            "\"leaseId\":\"%s\"," +
+                            "\"spaceId\":\"%s\"," +
+                            "\"spaceCode\":\"%s\"," +
+                            "\"tenantName\":\"%s\"," +
+                            "\"tenantId\":\"%s\"," +
+                            "\"branchName\":\"%s\"," +
+                            "\"branchID\":\"%s\"," +
+                            "\"createdUserName\":\"%s\"," +
+                            "\"rentAmount\":\"%s\"," +
+                            "\"userToken\":\"%s\"," +
+                            "\"url\":\"/lease-management\"," +
+                            "\"icon\":\"/sgh.png\"," +
+                            "\"badge\":\"/sgh.png\"," +
+                            "\"timestamp\":\"%s\"" +
+                            "}",
+                    sanitize(request.getTitle()),
+                    sanitize(request.getBody()),
+                    sanitize(request.getRole()),
+                    sanitize(request.getType() != null ? request.getType() : "general"),
+                    sanitize(request.getLeaseId() != null ? request.getLeaseId() : ""),
+                    sanitize(request.getSpaceId() != null ? request.getSpaceId() : ""),
+                    sanitize(request.getSpaceCode() != null ? request.getSpaceCode() : ""),
+                    sanitize(request.getTenantName() != null ? request.getTenantName() : ""),
+                    sanitize(request.getTenantId() != null ? request.getTenantId() : ""),
+                    sanitize(request.getBranchName() != null ? request.getBranchName() : ""),
+                    sanitize(request.getBranchID() != null ? request.getBranchID() : ""),
+                    sanitize(request.getCreatedUserName() != null ? request.getCreatedUserName() : ""),
+                    sanitize(request.getRentAmount() != null ? request.getRentAmount() : ""),
+                    sanitize(request.getUserToken() != null ? request.getUserToken() : ""),
                     LocalDateTime.now().toString()
             );
+
+            System.out.println("📨 Sending JSON body: " + jsonBody);
 
             for (User user : users) {
                 try {
@@ -600,7 +632,7 @@ public class PushController {
             response.put("users", users.size());
             response.put("failed", failedCount);
 
-            System.out.println("✅ Role notification completed: " + response.get("message"));
+            System.out.println("✅ Role notification completed with ALL data fields");
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
@@ -609,5 +641,21 @@ public class PushController {
             response.put("message", "Failed to send notification to role: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
+    }
+
+
+    private String sanitize(String input) {
+        if (input == null) return "";
+
+        // Remove ALL control characters + escape JSON-sensitive characters
+        return input
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t")
+                .replace("\b", "\\b")
+                .replace("\f", "\\f")
+                .replaceAll("[\\x00-\\x1F]", "");  // remove all control chars (0–31)
     }
 }

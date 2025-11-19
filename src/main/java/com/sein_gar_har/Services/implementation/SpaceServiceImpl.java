@@ -1,5 +1,6 @@
 package com.sein_gar_har.Services.implementation;
 
+import com.sein_gar_har.RepositoryMain.BranchRepository;
 import com.sein_gar_har.RepositoryMain.FloorRepository;
 import com.sein_gar_har.RepositoryMain.SpaceRepository;
 import com.sein_gar_har.RepositoryMain.SpaceTypeRepository;
@@ -11,6 +12,7 @@ import com.sein_gar_har.dto.request.SpaceUpdateRequestDTO;
 import com.sein_gar_har.dto.response.FloorResponseDTO;
 import com.sein_gar_har.dto.response.SpaceResponseDTO;
 import com.sein_gar_har.dto.response.SpaceTypeResponseDTO;
+import com.sein_gar_har.entity.Branch;
 import com.sein_gar_har.entity.Floor;
 import com.sein_gar_har.entity.Space;
 import com.sein_gar_har.entity.SpaceType;
@@ -19,10 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.transaction.Transactional;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,6 +38,9 @@ public class SpaceServiceImpl implements SpaceService {
 
     @Autowired
     private LocalStorageService localStorageService;
+
+    @Autowired
+    private BranchRepository branchRepository;
 
     private SpaceResponseDTO convertToDTO(Space space) {
         SpaceResponseDTO dto = new SpaceResponseDTO();
@@ -251,6 +253,39 @@ public class SpaceServiceImpl implements SpaceService {
     // ADD THIS METHOD TO CHECK IF SPACE CODE EXISTS
     public boolean spaceCodeExists(String spaceCode) {
         return spaceRepository.existsBySpaceCode(spaceCode);
+    }
+
+    @Override
+    public Map<String, Object> getSpaceWithBranchData(UUID spaceId) {
+        Space space = spaceRepository.findById(spaceId)
+                .orElseThrow(() -> new RuntimeException("Space not found"));
+
+        Map<String, Object> result = new HashMap<>();
+
+        // Space data
+        result.put("spaceId", space.getSpaceId());
+        result.put("spaceCode", space.getSpaceCode());
+        result.put("location", space.getLocation());
+        result.put("price", space.getPrice());
+        result.put("sizeSqft", space.getSizeSqft());
+        result.put("status", space.getStatus());
+
+        // Branch data
+        if (space.getFloor() != null && space.getFloor().getBranchBranchId() != null) {
+            Optional<Branch> branch = branchRepository.findById(Long.valueOf(space.getFloor().getBranchBranchId()));
+            if (branch.isPresent()) {
+                result.put("branchId", branch.get().getId());
+                result.put("branchName", branch.get().getName());
+                result.put("branchAddress", branch.get().getAddress());
+                result.put("branchPhone", branch.get().getPhoneNumber());
+            } else {
+                result.put("branchName", "Unknown Branch");
+            }
+        } else {
+            result.put("branchName", "No Branch Assigned");
+        }
+
+        return result;
     }
 
     // Helper methods for local storage

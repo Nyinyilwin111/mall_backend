@@ -5,6 +5,7 @@ import com.sein_gar_har.dto.request.SpaceUpdateRequestDTO;
 import com.sein_gar_har.dto.response.SpaceResponseDTO;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public interface SpaceService {
@@ -28,4 +29,6 @@ public interface SpaceService {
     void deleteSpaceImage(UUID spaceId, String imageUrl);
 
     boolean spaceCodeExists(String spaceCode); // ADD THIS METHOD
+
+    Map<String, Object> getSpaceWithBranchData(UUID spaceId);
 }
