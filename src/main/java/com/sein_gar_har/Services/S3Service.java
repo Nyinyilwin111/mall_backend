@@ -91,7 +91,7 @@ public class S3Service {
     }
 
     private String generateFileName(String originalFileName) {
-        return "spaces/" + UUID.randomUUID() + "_" + originalFileName;
+        return "reports/spaces/" + UUID.randomUUID() + "_" + originalFileName;
     }
 
     private String generateFileUrl(String key) {

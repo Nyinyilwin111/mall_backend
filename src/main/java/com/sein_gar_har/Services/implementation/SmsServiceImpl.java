@@ -34,21 +34,57 @@ public class SmsServiceImpl implements PushMessageService {
 
     @Override
     public List<GetPushMessageDto> getMessagesForUser(UUID userId) {
-        Optional<User> optionalUser = userRepository.findById(userId);
+        // 🔴 IMPORTANT: Make sure to fetch branch relationship eagerly
+        List<PushMessage> messages = pushMessageRepository.findByRecipientUserIdWithBranch(userId);
 
-        if (optionalUser.isEmpty()) {
-            throw new RuntimeException("User not found with ID: " + userId);
+        System.out.println("🔍 Fetching messages for user: " + userId);
+        System.out.println("📋 Found " + messages.size() + " messages");
+
+        List<GetPushMessageDto> dtos = messages.stream().map(this::convertToDto).collect(Collectors.toList());
+
+        // Debug output
+        dtos.forEach(dto -> {
+            System.out.println("📦 Message ID: " + dto.getId() +
+                    " | BranchID: " + dto.getBranchID() +
+                    " | TenantID: " + dto.getTenantId() +
+                    " | Type: " + dto.getType());
+        });
+
+        return dtos;
+    }
+
+    private GetPushMessageDto convertToDto(PushMessage message) {
+        GetPushMessageDto dto = new GetPushMessageDto();
+        dto.setId(message.getId());
+        dto.setMessage(message.getMessage());
+        dto.setDateTime(message.getDateTime());
+        dto.setReadby(message.isReadby());
+        dto.setSentToAll(message.isSentToAll());
+
+        // Map lease notification fields
+        dto.setType(message.getType());
+        dto.setTenantId(message.getTenantId());
+        dto.setSpaceId(message.getSpaceId());
+        dto.setSpaceCode(message.getSpaceCode());
+        dto.setTenantName(message.getTenantName());
+        dto.setRentAmount(message.getRentAmount());
+        dto.setCreatedUserName(message.getCreatedUserName());
+
+        // 🔴 CRITICAL: Extract branch information from relationship
+        if (message.getBranch() != null) {
+            dto.setBranchID(message.getBranch().getId().toString());
+            dto.setBranchName(message.getBranch().getName());
+        } else {
+            dto.setBranchID(null);
+            dto.setBranchName(null);
         }
 
-        User user = optionalUser.get();
-        List<PushMessage> messages = pushMessageRepository.findMessagesForUser(user);
+        System.out.println("🔄 Converted message: " + dto.getId() +
+                " | BranchID: " + dto.getBranchID() +
+                " | TenantID: " + dto.getTenantId() +
+                " | Has Branch: " + (message.getBranch() != null));
 
-        System.out.println("Found " + messages.size() + " messages for user: " + user.getEmail());
-
-        // Use the converter to avoid serialization issues
-        return messages.stream()
-                .map(messageConverter::convertToDto)
-                .collect(Collectors.toList());
+        return dto;
     }
 
     @Override

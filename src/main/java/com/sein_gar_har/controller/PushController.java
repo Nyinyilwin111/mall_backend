@@ -67,6 +67,7 @@ public class PushController {
     public void sendPush(@RequestParam String message) {
         messagingTemplate.convertAndSend("/topic/push", message);
     }
+
     // Enhanced subscribe method with WebSocket notification
     @PostMapping("/subscribe")
     public ResponseEntity<Map<String, Object>> subscribe(@RequestBody SubscriptionDto dto,
@@ -145,6 +146,19 @@ public class PushController {
             }
 
             PushMessage savedMessage = pushMessageService.save(message);
+
+            // Send WebSocket notification to all users
+            Map<String, Object> wsMessage = new HashMap<>();
+            wsMessage.put("id", savedMessage.getId());
+            wsMessage.put("title", title);
+            wsMessage.put("body", body);
+            wsMessage.put("message", title + " - " + body);
+            wsMessage.put("dateTime", savedMessage.getDateTime());
+            wsMessage.put("sentToAll", true);
+            wsMessage.put("notificationType", "ALL_USERS");
+
+            // Send to global topic
+            messagingTemplate.convertAndSend("/topic/notifications", wsMessage);
 
             // Send push notifications
             PushService pushService = new PushService();
@@ -274,6 +288,20 @@ public class PushController {
 
                 PushMessage savedMessage = pushMessageService.save(message);
 
+                // Send WebSocket notification to specific user
+                Map<String, Object> wsMessage = new HashMap<>();
+                wsMessage.put("id", savedMessage.getId());
+                wsMessage.put("title", title);
+                wsMessage.put("body", body);
+                wsMessage.put("message", title + " - " + body);
+                wsMessage.put("dateTime", savedMessage.getDateTime());
+                wsMessage.put("sentToAll", false);
+                wsMessage.put("branchName", branchOpt.get().getName());
+                wsMessage.put("targetUserId", user.getId());
+                wsMessage.put("notificationType", "BRANCH_USERS");
+
+                messagingTemplate.convertAndSend("/topic/notifications/" + user.getId(), wsMessage);
+
                 // Send web push notification
                 for (SubscriptionEntity sub : user.getSubscriptions()) {
                     totalSubscriptions++;
@@ -292,9 +320,8 @@ public class PushController {
                     }
                 }
 
-                // Send WebSocket notification
+                // Send WebSocket notification count update
                 webSocketNotificationController.sendNotificationCountUpdate(user.getId());
-                webSocketNotificationController.notifyNewMessage(savedMessage, user.getId());
             }
 
             response.put("status", "success");
@@ -360,6 +387,19 @@ public class PushController {
             PushMessage savedMessage = pushMessageService.save(message);
             System.out.println("💾 Message saved with ID: " + savedMessage.getId());
 
+            // Send WebSocket notification to specific user
+            Map<String, Object> wsMessage = new HashMap<>();
+            wsMessage.put("id", savedMessage.getId());
+            wsMessage.put("title", title);
+            wsMessage.put("body", body);
+            wsMessage.put("message", title + " - " + body);
+            wsMessage.put("dateTime", savedMessage.getDateTime());
+            wsMessage.put("sentToAll", false);
+            wsMessage.put("targetUserId", user.getId());
+            wsMessage.put("notificationType", "SPECIFIC_USER");
+
+            messagingTemplate.convertAndSend("/topic/notifications/" + user.getId(), wsMessage);
+
             // Send push notification only if user has subscriptions
             int sentCount = 0;
             if (!user.getSubscriptions().isEmpty()) {
@@ -396,7 +436,6 @@ public class PushController {
 
             // Send WebSocket notifications
             webSocketNotificationController.sendNotificationCountUpdate(user.getId());
-            webSocketNotificationController.notifyNewMessage(savedMessage, user.getId());
 
             response.put("status", "success");
             response.put("sent", sentCount);
@@ -508,33 +547,26 @@ public class PushController {
         }
     }
 
-    // NEW: Send to Role endpoint
     @PostMapping("/sendToRole")
     public ResponseEntity<Map<String, Object>> sendToRole(@RequestBody RoleNotificationRequest request) {
         Map<String, Object> response = new HashMap<>();
         try {
-            // Get all users with the specified role
             List<User> users = userService.findByRole(request.getRole());
 
             if (users.isEmpty()) {
                 response.put("status", "warning");
                 response.put("message", "No users found with role: " + request.getRole());
-                response.put("sent", 0);
-                response.put("total", 0);
                 return ResponseEntity.ok(response);
             }
 
             int sentCount = 0;
             int failedCount = 0;
-            int totalSubscriptions = 0;
 
-            // Create push service instance
             PushService pushService = new PushService();
             pushService.setPrivateKey(Utils.loadPrivateKey(privateKey));
             pushService.setPublicKey(Utils.loadPublicKey(publicKey));
             pushService.setSubject("mailto:admin@seingahar.com");
 
-            // FIXED: Include ALL data in JSON body
             String jsonBody = String.format(
                     "{" +
                             "\"title\":\"%s\"," +
@@ -573,8 +605,6 @@ public class PushController {
                     LocalDateTime.now().toString()
             );
 
-            System.out.println("📨 Sending JSON body: " + jsonBody);
-
             for (User user : users) {
                 try {
                     // Save push message for each user
@@ -583,6 +613,31 @@ public class PushController {
                     message.setDateTime(LocalDateTime.now());
                     message.setSentToAll(false);
                     message.setRecipientUser(user);
+
+                    // 🔴 CRITICAL: Set branch relationship from branchID
+                    if (request.getBranchID() != null && !request.getBranchID().isEmpty()) {
+                        try {
+                            Long branchId = Long.parseLong(request.getBranchID());
+                            Optional<Branch> branchOpt = branchRepository.findById(branchId);
+                            if (branchOpt.isPresent()) {
+                                message.setBranch(branchOpt.get());
+                                System.out.println("✅ Set branch relationship for message: " + branchOpt.get().getId());
+                            } else {
+                                System.err.println("❌ Branch not found with ID: " + request.getBranchID());
+                            }
+                        } catch (NumberFormatException e) {
+                            System.err.println("Invalid branch ID format: " + request.getBranchID());
+                        }
+                    }
+
+                    // Set lease notification fields
+                    message.setType(request.getType());
+                    message.setTenantId(request.getTenantId());
+                    message.setSpaceId(request.getSpaceId());
+                    message.setSpaceCode(request.getSpaceCode());
+                    message.setTenantName(request.getTenantName());
+                    message.setRentAmount(request.getRentAmount());
+                    message.setCreatedUserName(request.getCreatedUserName());
 
                     if (request.getSentuserId() != null && !request.getSentuserId().isEmpty()) {
                         try {
@@ -594,10 +649,35 @@ public class PushController {
                     }
 
                     PushMessage savedMessage = pushMessageService.save(message);
+                    System.out.println("💾 Saved message with branch: " +
+                            (savedMessage.getBranch() != null ? savedMessage.getBranch().getId() : "null"));
 
-                    // Send push notification to each subscription
+                    // Send WebSocket notification with ALL data
+                    Map<String, Object> wsMessage = new HashMap<>();
+                    wsMessage.put("id", savedMessage.getId());
+                    wsMessage.put("title", request.getTitle());
+                    wsMessage.put("body", request.getBody());
+                    wsMessage.put("message", request.getTitle() + " - " + request.getBody());
+                    wsMessage.put("dateTime", savedMessage.getDateTime());
+                    wsMessage.put("sentToAll", false);
+                    wsMessage.put("targetUserId", user.getId());
+                    wsMessage.put("notificationType", "ROLE_USERS");
+
+                    // Include all lease data
+                    wsMessage.put("type", request.getType());
+                    wsMessage.put("tenantId", request.getTenantId());
+                    wsMessage.put("branchID", request.getBranchID());
+                    wsMessage.put("spaceId", request.getSpaceId());
+                    wsMessage.put("spaceCode", request.getSpaceCode());
+                    wsMessage.put("tenantName", request.getTenantName());
+                    wsMessage.put("rentAmount", request.getRentAmount());
+                    wsMessage.put("createdUserName", request.getCreatedUserName());
+                    wsMessage.put("branchName", request.getBranchName());
+
+                    messagingTemplate.convertAndSend("/topic/notifications/" + user.getId(), wsMessage);
+
+                    // Send push notifications
                     for (SubscriptionEntity sub : user.getSubscriptions()) {
-                        totalSubscriptions++;
                         try {
                             nl.martijndwars.webpush.Notification notification = new nl.martijndwars.webpush.Notification(
                                     sub.getEndpoint(),
@@ -614,25 +694,19 @@ public class PushController {
                         }
                     }
 
-                    // Send WebSocket notifications
                     webSocketNotificationController.sendNotificationCountUpdate(user.getId());
-                    webSocketNotificationController.notifyNewMessage(savedMessage, user.getId());
 
                 } catch (Exception e) {
                     failedCount++;
                     System.err.println("❌ Error processing user " + user.getEmail() + ": " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
 
             response.put("status", "success");
-            response.put("message", String.format("Notification sent to %d out of %d %s users (%d subscriptions)",
-                    sentCount, users.size(), request.getRole(), totalSubscriptions));
+            response.put("message", String.format("Notification sent to %d %s users", sentCount, request.getRole()));
             response.put("sent", sentCount);
-            response.put("total", totalSubscriptions);
-            response.put("users", users.size());
             response.put("failed", failedCount);
-
-            System.out.println("✅ Role notification completed with ALL data fields");
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
@@ -642,7 +716,6 @@ public class PushController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
-
 
     private String sanitize(String input) {
         if (input == null) return "";

@@ -35,9 +35,9 @@ public class MessageConverter {
         // Set sender name safely - fetch user separately to avoid lazy loading issues
         if (message.getCreatedUserId() != null) {
             Optional<User> sender = userRepository.findById(message.getCreatedUserId().getId());
-            dto.setSenderName(sender.map(User::getFullName).orElse("System"));
+            dto.setCreatedUserName(sender.map(User::getFullName).orElse("System"));
         } else {
-            dto.setSenderName("System");
+            dto.setCreatedUserName("System");
         }
 
         return dto;

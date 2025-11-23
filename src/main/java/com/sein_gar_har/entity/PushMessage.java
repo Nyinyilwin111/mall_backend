@@ -16,9 +16,9 @@ import java.util.UUID;
 public class PushMessage {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO) // ensure generation strategy is set
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @UuidGenerator
-    private UUID id;  // <- This is mandatory
+    private UUID id;
 
     @Column(nullable = false)
     private String message;
@@ -28,20 +28,43 @@ public class PushMessage {
     @ManyToOne
     @JoinColumn(name = "created_user_id")
     @JsonIgnore
-    private User createdUserId; // the sender
+    private User createdUserId;
 
     @ManyToOne
     @JoinColumn(name = "recipient_user_id")
     @JsonIgnore
     private User recipientUser;
 
-    private boolean readby= false;
+    private boolean readby = false;
 
     @ManyToOne
     @JoinColumn(name = "branch_id")
     @JsonIgnore
-    private Branch branch; // optional for branch-specific messages
+    private Branch branch;
 
     @Column(nullable = false)
-    private boolean sentToAll = false; // true if sent to all users
+    private boolean sentToAll = false;
+
+    // Lease notification fields
+    @Column(name = "notification_type")
+    private String type;
+
+    @Column(name = "tenant_id")
+    private String tenantId;
+
+    @Column(name = "space_id")
+    private String spaceId;
+
+    @Column(name = "space_code")
+    private String spaceCode;
+
+    @Column(name = "tenant_name")
+    private String tenantName;
+
+    @Column(name = "rent_amount")
+    private String rentAmount;
+
+    @Column(name = "created_user_name")
+    private String createdUserName;
+
 }
