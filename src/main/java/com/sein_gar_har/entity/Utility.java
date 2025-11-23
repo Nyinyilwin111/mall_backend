@@ -1,0 +1,80 @@
+package com.sein_gar_har.entity;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Entity
+@Getter
+@Setter
+@Table(name = "utility")
+public class Utility {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "utility_id")
+    private Long utilityId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "space_id", nullable = false)
+    private Space space;
+
+    @Column(name = "utility_type", nullable = false, length = 50)
+    private String utilityType; // ELECTRICITY, WATER, INTERNET, MAINTENANCE_FEE, etc.
+
+    @Column(name = "description")
+    private String description;
+
+    @Column(name = "due_date", nullable = false)
+    private LocalDate dueDate;
+
+    @Column(name = "billing_period")
+    private String billingPeriod; // "January 2024", "2024-01", etc.
+
+    @Column(name = "usage_unit")
+    private String usageUnit; // kWh, m³, etc.
+
+    @Column(name = "previous_reading")
+    private Double previousReading;
+
+    @Column(name = "current_reading")
+    private Double currentReading;
+
+    @Column(name = "usage_amount")
+    private Double usageAmount;
+
+    // ADDED: Amount column
+    @Column(name = "amount", precision = 12, scale = 2)
+    private BigDecimal amount;
+
+    @Column(name = "record_status", length = 20)
+    private String recordStatus = "ACTIVE"; // ACTIVE, CANCELLED
+
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    // Constructors
+    public Utility() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    // Method to calculate usage amount only
+    public void calculateUsageAmount() {
+        if (this.previousReading != null && this.currentReading != null) {
+            this.usageAmount = this.currentReading - this.previousReading;
+        }
+    }
+}
