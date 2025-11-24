@@ -7,6 +7,7 @@ import com.sein_gar_har.dto.response.ApiResponse;
 import com.sein_gar_har.dto.response.ApiResponseDTO;
 import com.sein_gar_har.dto.response.UserDTO;
 import com.sein_gar_har.dto.response.UserResponseDTO;
+import com.sein_gar_har.entity.Role;
 import com.sein_gar_har.entity.User;
 import com.sein_gar_har.exception.UserException;
 import lombok.RequiredArgsConstructor;
@@ -145,5 +146,27 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
+
+    @GetMapping("/{userId}/roles")       // this is new add by nyinyilwin
+    public ResponseEntity<List<String>> getUserRoles(@PathVariable UUID userId) {
+        try {
+            User user = userService.findUserById(userId);
+            if (user == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            List<String> roleNames = user.getRoles().stream()
+                    .map(Role::getName)
+                    .toList();
+
+            System.out.println("📋 Fetching roles for user " + userId + ": " + roleNames);
+            return ResponseEntity.ok(roleNames);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
 
 }

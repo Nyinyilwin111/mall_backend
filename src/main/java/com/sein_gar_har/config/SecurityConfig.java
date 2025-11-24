@@ -23,19 +23,15 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-//    private static final String[] WHITE_LIST_URL = {"/api/auth/**", "/ws/**"};
-
     private final JwtAuthorizationFilter jwtAuthorizationFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http.sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-//                .authorizeHttpRequests(request -> {
-//                    request.requestMatchers(WHITE_LIST_URL).permitAll();
-//                    request.anyRequest().authenticated();
-//                })
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/notifications/**").permitAll()
+                        .requestMatchers("/topic/notifications/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/test/**").permitAll()
                         .requestMatchers("/api/users/**").permitAll()

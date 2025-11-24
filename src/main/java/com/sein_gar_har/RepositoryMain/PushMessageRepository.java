@@ -12,14 +12,9 @@ import java.util.UUID;
 
 public interface PushMessageRepository extends JpaRepository<PushMessage, UUID> {
 
-    List<PushMessage> findBySentToAllTrueOrBranch(Branch branch);
+    Long countByRecipientUserIdAndReadbyFalse(UUID userId);
 
-    @Query("SELECT pm FROM PushMessage pm WHERE " +
-            "pm.recipientUser = :user OR " +
-            "pm.recipientUser IS NULL OR " +
-            "pm.sentToAll = true ")
-    List<PushMessage> findMessagesForUser(@Param("user") User user);
-
-    Long countByRecipientUserIdAndReadbyFalse(UUID recipientUserId);
-
+    // 🔴 CRITICAL: Add this method to fetch messages with branch relationship
+    @Query("SELECT pm FROM PushMessage pm LEFT JOIN FETCH pm.branch WHERE pm.recipientUser.id = :userId ORDER BY pm.dateTime DESC")
+    List<PushMessage> findByRecipientUserIdWithBranch(@Param("userId") UUID userId);
 }
