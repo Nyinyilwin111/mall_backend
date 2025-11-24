@@ -27,6 +27,23 @@ public class AuditLogService {
     private final HttpServletRequest request;
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
+    // ✅ ADD these methods to your existing AuditLogService class
+
+    // ThreadLocal for storing current user context
+    private static final ThreadLocal<String> currentUser = new ThreadLocal<>();
+    private static final ThreadLocal<String> currentUserFullName = new ThreadLocal<>();
+
+    // Set user context for maintenance operations
+    public static void setMaintenanceOperationUser(String username, String fullName) {
+        currentUser.set(username);
+        currentUserFullName.set(fullName);
+    }
+
+    // Clear user context
+    public static void clearMaintenanceOperationUser() {
+        currentUser.remove();
+        currentUserFullName.remove();
+    }
 
     @Transactional("auditTransactionManager")
     public void logAction(String action, String tableName, String recordId,
@@ -968,33 +985,140 @@ public class AuditLogService {
             e.printStackTrace();
         }
     }
-    // AuditLogService.java - generateUserFriendlyMessage method ကို update လုပ်ပါ
+    // Add this method to your existing AuditLogService class
     private String generateUserFriendlyMessage(String action, String tableName, String recordId,
                                                Map<String, Object> oldData, Map<String, Object> newData,
                                                String performedBy) {
         switch (action) {
-            case "UTILITY_CANCELLED":
-                String utilityType = oldData != null ? (String) oldData.get("utilityType") : "Unknown";
-                String amount = oldData != null ? oldData.get("amount").toString() : "Unknown";
-                return String.format("%s cancelled utility: %s (Amount: %s)",
-                        performedBy, utilityType, amount);
+            case "CREATE":
+                if ("Payment".equals(tableName)) {
+                    String amount = newData != null && newData.get("amount") != null ?
+                            newData.get("amount").toString() : "Unknown";
+                    String paymentType = newData != null ? (String) newData.get("paymentType") : "Unknown";
+                    if ("LEASE".equals(paymentType)) {
+                        String leaseId = newData != null && newData.get("leaseId") != null ?
+                                newData.get("leaseId").toString() : "Unknown";
+                        return String.format("💰 %s created LEASE payment for Lease %s (Amount: %s)",
+                                performedBy, leaseId, amount);
+                    } else if ("UTILITY".equals(paymentType)) {
+                        String utilityType = newData != null ? (String) newData.get("utilityType") : "Unknown";
+                        return String.format("💰 %s created UTILITY payment for %s (Amount: %s)",
+                                performedBy, utilityType, amount);
+                    }
+                    return String.format("💰 %s created %s payment (Amount: %s)",
+                            performedBy, paymentType, amount);
+                }
+                break;
 
-            case "UTILITY_MARKED_PAID":
-                String paidUtilityType = newData != null ? (String) newData.get("utilityType") : "Unknown";
-                String paidAmount = newData != null ? newData.get("amount").toString() : "Unknown";
-                return String.format("%s marked utility as paid: %s (Amount: %s)",
-                        performedBy, paidUtilityType, paidAmount);
+            case "UPDATE":
+                if ("Payment".equals(tableName)) {
+                    String amount = newData != null && newData.get("amount") != null ?
+                            newData.get("amount").toString() : "Unknown";
+                    String paymentType = newData != null ? (String) newData.get("paymentType") : "Unknown";
+
+                    if ("LEASE".equals(paymentType)) {
+                        String leaseId = newData != null && newData.get("leaseId") != null ?
+                                newData.get("leaseId").toString() : "Unknown";
+                        return String.format("📝 %s updated LEASE payment for Lease %s (Amount: %s)",
+                                performedBy, leaseId, amount);
+                    } else if ("UTILITY".equals(paymentType)) {
+                        String utilityType = newData != null ? (String) newData.get("utilityType") : "Unknown";
+                        return String.format("📝 %s updated UTILITY payment for %s (Amount: %s)",
+                                performedBy, utilityType, amount);
+                    }
+                    return String.format("📝 %s updated payment (Amount: %s)", performedBy, amount);
+                }
+                break;
+
+            case "DELETE":
+                if ("Payment".equals(tableName)) {
+                    String amount = oldData != null && oldData.get("amount") != null ?
+                            oldData.get("amount").toString() : "Unknown";
+                    String paymentType = oldData != null ? (String) oldData.get("paymentType") : "Unknown";
+
+                    if ("LEASE".equals(paymentType)) {
+                        String leaseId = oldData != null && oldData.get("leaseId") != null ?
+                                oldData.get("leaseId").toString() : "Unknown";
+                        return String.format("🗑️ %s deleted LEASE payment for Lease %s (Amount: %s)",
+                                performedBy, leaseId, amount);
+                    } else if ("UTILITY".equals(paymentType)) {
+                        String utilityType = oldData != null ? (String) oldData.get("utilityType") : "Unknown";
+                        return String.format("🗑️ %s deleted UTILITY payment for %s (Amount: %s)",
+                                performedBy, utilityType, amount);
+                    }
+                    return String.format("🗑️ %s deleted payment (Amount: %s)", performedBy, amount);
+                }
+                break;
 
             case "PAYMENT_STATUS_UPDATE":
                 String oldStatus = newData != null ? (String) newData.get("oldStatus") : "Unknown";
                 String newStatus = newData != null ? (String) newData.get("newStatus") : "Unknown";
-                String paymentAmount = newData != null ? newData.get("amount").toString() : "Unknown";
-                return String.format("%s changed payment status from %s to %s (Amount: %s)",
-                        performedBy, oldStatus, newStatus, paymentAmount);
+                String paymentAmount = newData != null && newData.get("amount") != null ?
+                        newData.get("amount").toString() : "Unknown";
+                String paymentType = newData != null ? (String) newData.get("paymentType") : "Unknown";
+
+                if ("LEASE".equals(paymentType)) {
+                    String leaseId = newData != null && newData.get("leaseId") != null ?
+                            newData.get("leaseId").toString() : "Unknown";
+                    return String.format("🔄 %s changed LEASE payment status from %s to %s (Lease: %s, Amount: %s)",
+                            performedBy, oldStatus, newStatus, leaseId, paymentAmount);
+                } else if ("UTILITY".equals(paymentType)) {
+                    String utilityType = newData != null ? (String) newData.get("utilityType") : "Unknown";
+                    return String.format("🔄 %s changed UTILITY payment status from %s to %s (%s, Amount: %s)",
+                            performedBy, oldStatus, newStatus, utilityType, paymentAmount);
+                } else {
+                    return String.format("🔄 %s changed payment status from %s to %s (Amount: %s)",
+                            performedBy, oldStatus, newStatus, paymentAmount);
+                }
+
+            case "UTILITY_CANCELLED":
+                String utilityType = oldData != null ? (String) oldData.get("utilityType") : "Unknown";
+                String amount = oldData != null && oldData.get("amount") != null ?
+                        oldData.get("amount").toString() : "Unknown";
+                return String.format("❌ %s cancelled utility: %s (Amount: %s)",
+                        performedBy, utilityType, amount);
+
+            case "UTILITY_MARKED_PAID":
+                String paidUtilityType = newData != null ? (String) newData.get("utilityType") : "Unknown";
+                String paidAmount = newData != null && newData.get("amount") != null ?
+                        newData.get("amount").toString() : "Unknown";
+                return String.format("✅ %s marked utility as paid: %s (Amount: %s)",
+                        performedBy, paidUtilityType, paidAmount);
 
             default:
                 return String.format("%s performed %s on %s: %s",
                         performedBy, action, tableName, recordId);
         }
+
+        return String.format("%s performed %s on %s: %s",
+                performedBy, action, tableName, recordId);
+    }
+
+    // Add this static method to AuditLogService class
+    public static String getCurrentUserFromThreadLocal() {
+        try {
+            // Access ThreadLocal variables using reflection
+            java.lang.reflect.Field currentUserField = AuditLogService.class.getDeclaredField("currentUser");
+            java.lang.reflect.Field currentUserFullNameField = AuditLogService.class.getDeclaredField("currentUserFullName");
+
+            currentUserField.setAccessible(true);
+            currentUserFullNameField.setAccessible(true);
+
+            ThreadLocal<String> currentUserTL = (ThreadLocal<String>) currentUserField.get(null);
+            ThreadLocal<String> currentUserFullNameTL = (ThreadLocal<String>) currentUserFullNameField.get(null);
+
+            String fullName = currentUserFullNameTL != null ? currentUserFullNameTL.get() : null;
+            if (fullName != null && !fullName.trim().isEmpty()) {
+                return fullName;
+            }
+
+            String username = currentUserTL != null ? currentUserTL.get() : null;
+            if (username != null && !username.trim().isEmpty()) {
+                return username;
+            }
+        } catch (Exception e) {
+            System.err.println("Error accessing ThreadLocal: " + e.getMessage());
+        }
+        return null;
     }
 }

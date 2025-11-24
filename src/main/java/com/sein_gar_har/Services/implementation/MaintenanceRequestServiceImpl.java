@@ -137,13 +137,7 @@ public class MaintenanceRequestServiceImpl implements MaintenanceRequestService 
         details.put("newStatus", saved.getStatus().toString());
         details.put("title", saved.getTitle());
 
-        auditLogService.logAction(
-                "MAINTENANCE_STATUS_UPDATE",
-                "MaintenanceRequest",
-                requestId.toString(),
-                null,
-                details
-        );
+
 
         return new MaintenanceRequestResponse(saved);
     }
