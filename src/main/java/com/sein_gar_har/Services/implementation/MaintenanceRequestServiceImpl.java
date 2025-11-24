@@ -41,6 +41,7 @@ public class MaintenanceRequestServiceImpl implements MaintenanceRequestService 
         entity.setTitle(dto.getTitle());
         entity.setDescription(dto.getDescription());
         entity.setPriority(dto.getPriority());
+        entity.setSpaceCode(dto.getSpaceCode());
         entity.setAssignedTo(dto.getAssignedTo());
         entity.setStatus(MaintenanceRequest.MaintenanceStatus.Pending);
 

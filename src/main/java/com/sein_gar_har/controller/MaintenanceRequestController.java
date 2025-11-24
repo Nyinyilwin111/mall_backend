@@ -16,13 +16,16 @@ import java.util.UUID;
 @RestController
 @CrossOrigin(origins = "*")
 @RequestMapping("/api/maintenance-requests")
-@RequiredArgsConstructor // ✅ ADD
+@RequiredArgsConstructor
 public class MaintenanceRequestController {
 
-    private final MaintenanceRequestService maintenanceRequestService;
-    private final AuditLogService auditLogService; // ✅ ADD
+    @Autowired
+    MaintenanceRequestService maintenanceRequestService;
 
-    // FR-6.1: Tenant submit maintenance request
+    @Autowired
+    AuditLogService auditLogService;
+
+    // Tenant submit maintenance request
     @PostMapping
     public ResponseEntity<MaintenanceRequestResponse> createRequest(
             @RequestBody MaintenanceRequestDTO requestDTO) {
@@ -33,7 +36,10 @@ public class MaintenanceRequestController {
     // Manager: view all requests
     @GetMapping
     public ResponseEntity<List<MaintenanceRequestResponse>> getAllRequests() {
-        return ResponseEntity.ok(maintenanceRequestService.getAllRequests());
+        List<MaintenanceRequestResponse> response = maintenanceRequestService.getAllRequests();
+        response.forEach(item -> System.out.println("mmmmm item : " + item));
+        return ResponseEntity.ok(response);
+
     }
 
     // Tenant or Manager: get by ID
@@ -72,7 +78,7 @@ public class MaintenanceRequestController {
         return ResponseEntity.noContent().build();
     }
 
-    // ✅ ADD: Custom audit log endpoint for maintenance actions
+    // Custom audit log endpoint for maintenance actions
     @PostMapping("/{id}/audit-log")
     public ResponseEntity<?> createMaintenanceAuditLog(
             @PathVariable("id") UUID id,

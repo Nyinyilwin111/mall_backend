@@ -17,4 +17,8 @@ public interface PushMessageRepository extends JpaRepository<PushMessage, UUID> 
     // 🔴 CRITICAL: Add this method to fetch messages with branch relationship
     @Query("SELECT pm FROM PushMessage pm LEFT JOIN FETCH pm.branch WHERE pm.recipientUser.id = :userId ORDER BY pm.dateTime DESC")
     List<PushMessage> findByRecipientUserIdWithBranch(@Param("userId") UUID userId);
+
+    List<PushMessage> findByRecipientUser_IdAndReadby(UUID userId, boolean readby);
+
+    List<PushMessage> findByRecipientUser_Id(UUID userId);
 }

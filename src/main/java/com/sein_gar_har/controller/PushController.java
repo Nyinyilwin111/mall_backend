@@ -746,4 +746,65 @@ public class PushController {
                 .replace("\f", "\\f")
                 .replaceAll("[\\x00-\\x1F]", "");  // remove all control chars (0–31)
     }
+
+    @DeleteMapping("/{messageId}/delete")
+    public ResponseEntity<?> deleteMessage(@PathVariable String messageId) {
+        try {
+            pushMessageService.deleteMessage(messageId);
+            return ResponseEntity.ok().body(
+                    Map.of(
+                            "success", true,
+                            "message", "Message deleted successfully",
+                            "deletedId", messageId
+                    )
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "success", false,
+                            "message", "Failed to delete message: " + e.getMessage()
+                    ));
+        }
+    }
+
+    @DeleteMapping("/user/{userId}/deleteAll")
+    public ResponseEntity<?> deleteAllUserMessages(@PathVariable String userId) {
+        try {
+            int deletedCount = pushMessageService.deleteAllUserMessages(userId);
+            return ResponseEntity.ok().body(
+                    Map.of(
+                            "success", true,
+                            "message", "All messages deleted successfully",
+                            "deletedCount", deletedCount
+                    )
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "success", false,
+                            "message", "Failed to delete all messages: " + e.getMessage()
+                    ));
+        }
+    }
+
+    @DeleteMapping("/user/{userId}/readDelete")
+    public ResponseEntity<?> deleteReadMessages(@PathVariable String userId) {
+        try {
+            int deletedCount = pushMessageService.deleteReadMessages(userId);
+            return ResponseEntity.ok().body(
+                    Map.of(
+                            "success", true,
+                            "message", "Read messages deleted successfully",
+                            "deletedCount", deletedCount
+                    )
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "success", false,
+                            "message", "Failed to delete read messages: " + e.getMessage()
+                    ));
+        }
+    }
+
 }

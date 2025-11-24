@@ -20,21 +20,18 @@ public class MaintenanceRequest {
     @Column(name = "request_id", columnDefinition = "BINARY(16)")
     private UUID requestId;
 
-    // Who submitted the request (tenant)
     @Column(name = "tenant_id", columnDefinition = "BINARY(16)", nullable = false)
     private UUID tenantId;
 
-    //    @Column(name = "title", columnDefinition = "NVARCHAR(100)", nullable = false)
     private String title;
 
-    //    @Column(name = "description", columnDefinition = "NVARCHAR(500)", nullable = false)
+    private String spaceCode;
+
     private String description;
 
-    // Optional: Low / Medium / High
     @Column(name = "priority", columnDefinition = "NVARCHAR(20)")
     private String priority;
 
-    // Optional: who it is assigned to (staff user-id or name)
     @Column(name = "assigned_to", columnDefinition = "NVARCHAR(100)")
     private String assignedTo;
 

@@ -18,6 +18,7 @@ public class MaintenanceRequestResponse {
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private String spaceCode;
 
     public MaintenanceRequestResponse(MaintenanceRequest entity) {
         this.requestId = entity.getRequestId();
@@ -29,5 +30,6 @@ public class MaintenanceRequestResponse {
         this.status = entity.getStatus().name();
         this.createdAt = entity.getCreatedAt();
         this.updatedAt = entity.getUpdatedAt();
+        this.spaceCode = entity.getSpaceCode();
     }
 }

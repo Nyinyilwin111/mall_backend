@@ -18,4 +18,10 @@ public interface PushMessageService {
     Long getUnreadCount(UUID userId);
 
     PushMessage findById(UUID messageUuid);
+
+    void deleteMessage(String messageId);
+
+    int deleteAllUserMessages(String userId);
+
+    int deleteReadMessages(String userId);
 }

@@ -27,22 +27,37 @@ public class AuditLogService {
     private final HttpServletRequest request;
     private final ObjectMapper objectMapper;
     private final UserRepository userRepository;
-    // ✅ ADD these methods to your existing AuditLogService class
 
     // ThreadLocal for storing current user context
     private static final ThreadLocal<String> currentUser = new ThreadLocal<>();
     private static final ThreadLocal<String> currentUserFullName = new ThreadLocal<>();
 
+    // Thread-local storage for branch operation users
+    private static final ThreadLocal<String> branchOperationUser = new ThreadLocal<>();
+
     // Set user context for maintenance operations
     public static void setMaintenanceOperationUser(String username, String fullName) {
         currentUser.set(username);
         currentUserFullName.set(fullName);
+        System.out.println("=== SET MAINTENANCE OPERATION USER: " + fullName + " ===");
     }
 
     // Clear user context
     public static void clearMaintenanceOperationUser() {
         currentUser.remove();
         currentUserFullName.remove();
+        System.out.println("=== CLEARED MAINTENANCE OPERATION USER ===");
+    }
+
+    // Set branch operation user
+    public static void setBranchOperationUser(String userFullName) {
+        branchOperationUser.set(userFullName);
+        System.out.println("=== SET BRANCH OPERATION USER: " + userFullName + " ===");
+    }
+
+    // Clear branch operation user
+    public static void clearBranchOperationUser() {
+        branchOperationUser.remove();
     }
 
     @Transactional("auditTransactionManager")
@@ -86,6 +101,8 @@ public class AuditLogService {
             // Broadcast via WebSocket
             auditStompSender.broadcast(savedLog);
 
+            System.out.println("✅ Audit log saved: " + friendlyMessage);
+
         } catch (Exception e) {
             System.err.println("❌ Audit logging failed: " + e.getMessage());
             e.printStackTrace();
@@ -97,9 +114,18 @@ public class AuditLogService {
      */
     private String getCurrentUserFullNameEnhanced() {
         try {
-            // Strategy 1: Try SecurityContext first
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             System.out.println("=== ENHANCED USER DETECTION ===");
+
+            // Strategy 1: Check ThreadLocal first (for maintenance operations)
+            String threadLocalUser = getCurrentUserFromThreadLocal();
+            System.out.println("ThreadLocal User: " + threadLocalUser);
+
+            if (threadLocalUser != null && !threadLocalUser.trim().isEmpty() && !"System".equals(threadLocalUser)) {
+                return threadLocalUser;
+            }
+
+            // Strategy 2: Try SecurityContext
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             System.out.println("Authentication: " + authentication);
 
             if (authentication != null && authentication.isAuthenticated()) {
@@ -119,14 +145,14 @@ public class AuditLogService {
                 }
             }
 
-            // Strategy 2: Check if this is a branch operation and try to get from thread local
+            // Strategy 3: Check if this is a branch operation
             String branchOperationUser = getBranchOperationUser();
             if (branchOperationUser != null) {
                 System.out.println("Found branch operation user: " + branchOperationUser);
                 return branchOperationUser;
             }
 
-            // Strategy 3: Last resort - check recent logs for the same IP
+            // Strategy 4: Last resort - check recent logs for the same IP
             String recentUser = findRecentUserFromIp();
             if (recentUser != null) {
                 System.out.println("Found recent user from IP: " + recentUser);
@@ -155,7 +181,8 @@ public class AuditLogService {
         return username != null &&
                 !username.trim().isEmpty() &&
                 !"anonymousUser".equals(username) &&
-                !"system".equalsIgnoreCase(username);
+                !"system".equalsIgnoreCase(username) &&
+                !"null".equalsIgnoreCase(username);
     }
 
     private String findUserFullName(String username) {
@@ -182,20 +209,6 @@ public class AuditLogService {
         }
     }
 
-    /**
-     * Thread-local storage for branch operation users
-     */
-    private static final ThreadLocal<String> branchOperationUser = new ThreadLocal<>();
-
-    public static void setBranchOperationUser(String userFullName) {
-        branchOperationUser.set(userFullName);
-        System.out.println("=== SET BRANCH OPERATION USER: " + userFullName + " ===");
-    }
-
-    public static void clearBranchOperationUser() {
-        branchOperationUser.remove();
-    }
-
     private String getBranchOperationUser() {
         try {
             String user = branchOperationUser.get();
@@ -214,9 +227,7 @@ public class AuditLogService {
                 String ipAddress = getClientIpAddress();
                 // Look for recent audit logs from the same IP in the last 5 minutes
                 LocalDateTime fiveMinutesAgo = LocalDateTime.now().minusMinutes(5);
-
                 // This would require a custom repository method, so we'll skip for now
-                // You can implement this if needed
             }
         } catch (Exception e) {
             // Ignore errors in this fallback
@@ -227,6 +238,18 @@ public class AuditLogService {
     private String generateUserFriendlyMessage(String action, String tableName, String recordId,
                                                Object oldData, Object newData, String performedBy) {
         try {
+            // Convert data to maps for easier processing
+            Map<String, Object> oldMap = oldData != null ?
+                    objectMapper.convertValue(oldData, new TypeReference<Map<String, Object>>() {}) : null;
+            Map<String, Object> newMap = newData != null ?
+                    objectMapper.convertValue(newData, new TypeReference<Map<String, Object>>() {}) : null;
+
+            // Payment-specific messages
+            if ("Payment".equals(tableName)) {
+                return generatePaymentMessage(action, oldMap, newMap, performedBy);
+            }
+
+            // Existing logic for other entities...
             switch (action) {
                 case "CREATE":
                     return generateCreateMessage(tableName, recordId, newData, performedBy);
@@ -249,6 +272,96 @@ public class AuditLogService {
                 return String.format("System performed %s on %s", action, tableName);
             }
             return String.format("%s performed %s on %s", performedBy, action, tableName);
+        }
+    }
+
+    // Payment-specific message generator
+    private String generatePaymentMessage(String action, Map<String, Object> oldMap,
+                                          Map<String, Object> newMap, String performedBy) {
+        try {
+            Map<String, Object> data = action.equals("CREATE") ? newMap :
+                    action.equals("DELETE") ? oldMap : newMap;
+
+            if (data == null) {
+                return String.format("💰 %s %s payment", performedBy, action.toLowerCase());
+            }
+
+            String amount = data.containsKey("amount") ?
+                    String.valueOf(data.get("amount")) : "Unknown";
+            String paymentType = data.containsKey("paymentType") ?
+                    String.valueOf(data.get("paymentType")) : "Payment";
+            String title = data.containsKey("title") ?
+                    String.valueOf(data.get("title")) : "Payment";
+
+            switch (action) {
+                case "CREATE":
+                    if ("LEASE".equals(paymentType)) {
+                        String leaseId = data.containsKey("leaseId") ?
+                                String.valueOf(data.get("leaseId")) : "Unknown";
+                        return String.format("💰 %s created Lease Payment for Lease #%s (Amount: $%s)",
+                                performedBy, leaseId, amount);
+                    } else if ("UTILITY".equals(paymentType)) {
+                        String utilityType = data.containsKey("utilityType") ?
+                                String.valueOf(data.get("utilityType")) : "Utility";
+                        return String.format("💰 %s created %s Utility Payment (Amount: $%s)",
+                                performedBy, utilityType, amount);
+                    }
+                    return String.format("💰 %s created payment (Amount: $%s)", performedBy, amount);
+
+                case "UPDATE":
+                    // Check if this is a status update
+                    if (newMap != null && newMap.containsKey("oldStatus") && newMap.containsKey("newStatus")) {
+                        String oldStatus = String.valueOf(newMap.get("oldStatus"));
+                        String newStatus = String.valueOf(newMap.get("newStatus"));
+
+                        if ("LEASE".equals(paymentType)) {
+                            String leaseId = data.containsKey("leaseId") ?
+                                    String.valueOf(data.get("leaseId")) : "Unknown";
+                            return String.format("🔄 %s changed Lease Payment status from %s to %s (Lease #%s, Amount: $%s)",
+                                    performedBy, oldStatus, newStatus, leaseId, amount);
+                        } else if ("UTILITY".equals(paymentType)) {
+                            String utilityType = data.containsKey("utilityType") ?
+                                    String.valueOf(data.get("utilityType")) : "Utility";
+                            return String.format("🔄 %s changed Utility Payment status from %s to %s (%s, Amount: $%s)",
+                                    performedBy, oldStatus, newStatus, utilityType, amount);
+                        }
+                        return String.format("🔄 %s changed payment status from %s to %s (Amount: $%s)",
+                                performedBy, oldStatus, newStatus, amount);
+                    }
+
+                    // Regular update
+                    if ("LEASE".equals(paymentType)) {
+                        String leaseId = data.containsKey("leaseId") ?
+                                String.valueOf(data.get("leaseId")) : "Unknown";
+                        return String.format("📝 %s updated Lease Payment for Lease #%s (Amount: $%s)",
+                                performedBy, leaseId, amount);
+                    } else if ("UTILITY".equals(paymentType)) {
+                        String utilityType = data.containsKey("utilityType") ?
+                                String.valueOf(data.get("utilityType")) : "Utility";
+                        return String.format("📝 %s updated %s Utility Payment (Amount: $%s)",
+                                performedBy, utilityType, amount);
+                    }
+                    return String.format("📝 %s updated payment (Amount: $%s)", performedBy, amount);
+
+                case "DELETE":
+                    if ("LEASE".equals(paymentType)) {
+                        String leaseId = data.containsKey("leaseId") ?
+                                String.valueOf(data.get("leaseId")) : "Unknown";
+                        return String.format("🗑️ %s deleted Lease Payment for Lease #%s (Amount: $%s)",
+                                performedBy, leaseId, amount);
+                    } else if ("UTILITY".equals(paymentType)) {
+                        String utilityType = data.containsKey("utilityType") ?
+                                String.valueOf(data.get("utilityType")) : "Utility";
+                        return String.format("🗑️ %s deleted %s Utility Payment (Amount: $%s)",
+                                performedBy, utilityType, amount);
+                    }
+                    return String.format("🗑️ %s deleted payment (Amount: $%s)", performedBy, amount);
+
+                default:
+                    return String.format("💰 %s %s payment (Amount: $%s)", performedBy, action.toLowerCase(), amount);
+            }
+        } catch (Exception e) {
+            return String.format("💰 %s %s payment", performedBy, action.toLowerCase());
         }
     }
 
@@ -449,122 +562,6 @@ public class AuditLogService {
                         return String.format("🏢 Branch was updated by %s", performedBy);
                     }
 
-                case "Space":
-                    String oldSpaceCode = getStringValue(oldMap, "spaceCode");
-                    String newSpaceCode = getStringValue(newMap, "spaceCode");
-                    String oldSpaceLocation = getStringValue(oldMap, "location");
-                    String newSpaceLocation = getStringValue(newMap, "location");
-
-                    if (!newSpaceCode.isEmpty()) {
-                        if (!oldSpaceCode.equals(newSpaceCode) && !oldSpaceLocation.equals(newSpaceLocation)) {
-                            return String.format("🏢 Space '%s' was updated by %s: code to '%s', location to '%s'",
-                                    oldSpaceCode, performedBy, newSpaceCode, newSpaceLocation);
-                        } else if (!oldSpaceCode.equals(newSpaceCode)) {
-                            return String.format("🏢 Space '%s' was updated by %s: code changed to '%s'",
-                                    oldSpaceCode, performedBy, newSpaceCode);
-                        } else if (!oldSpaceLocation.equals(newSpaceLocation)) {
-                            return String.format("🏢 Space '%s' was updated by %s: location changed to '%s'",
-                                    newSpaceCode, performedBy, newSpaceLocation);
-                        } else {
-                            // Check for other changes
-                            Double oldPrice = getDoubleValue(oldMap, "price");
-                            Double newPrice = getDoubleValue(newMap, "price");
-                            String oldStatus = getStringValue(oldMap, "status");
-                            String newStatus = getStringValue(newMap, "status");
-
-                            StringBuilder changes = new StringBuilder();
-                            if (oldPrice != null && newPrice != null && !oldPrice.equals(newPrice)) {
-                                changes.append("price from ").append(oldPrice).append(" to ").append(newPrice).append(", ");
-                            }
-                            if (!oldStatus.equals(newStatus)) {
-                                changes.append("status from ").append(oldStatus).append(" to ").append(newStatus).append(", ");
-                            }
-
-                            if (changes.length() > 0) {
-                                changes.setLength(changes.length() - 2);
-                                return String.format("🏢 Space '%s' was updated by %s: %s",
-                                        newSpaceCode, performedBy, changes.toString());
-                            }
-                            return String.format("🏢 Space '%s' was updated by %s", newSpaceCode, performedBy);
-                        }
-                    } else {
-                        return String.format("🏢 Space was updated by %s", performedBy);
-                    }
-
-                case "Floor":
-                    String oldFloorLevel = getStringValue(oldMap, "level");
-                    String newFloorLevel = getStringValue(newMap, "level");
-                    String oldBranchId = getStringValue(oldMap, "branchBranchId");
-                    String newBranchId = getStringValue(newMap, "branchBranchId");
-
-                    if (!newFloorLevel.isEmpty()) {
-                        if (!oldFloorLevel.equals(newFloorLevel) && !oldBranchId.equals(newBranchId)) {
-                            return String.format("🏗️ Floor 'Level %s' was updated by %s: level to '%s', branch to '%s'",
-                                    oldFloorLevel, performedBy, newFloorLevel, newBranchId);
-                        } else if (!oldFloorLevel.equals(newFloorLevel)) {
-                            return String.format("🏗️ Floor 'Level %s' was updated by %s: level changed to '%s'",
-                                    oldFloorLevel, performedBy, newFloorLevel);
-                        } else if (!oldBranchId.equals(newBranchId)) {
-                            return String.format("🏗️ Floor 'Level %s' was updated by %s: branch changed to '%s'",
-                                    newFloorLevel, performedBy, newBranchId);
-                        } else {
-                            return String.format("🏗️ Floor 'Level %s' was updated by %s", newFloorLevel, performedBy);
-                        }
-                    } else {
-                        return String.format("🏗️ Floor was updated by %s", performedBy);
-                    }
-
-                case "SpaceType":
-                    String oldSpaceTypeName = getStringValue(oldMap, "typeName");
-                    String newSpaceTypeName = getStringValue(newMap, "typeName");
-                    String oldDescription = getStringValue(oldMap, "description");
-                    String newDescription = getStringValue(newMap, "description");
-
-                    if (!newSpaceTypeName.isEmpty()) {
-                        if (!oldSpaceTypeName.equals(newSpaceTypeName) && !oldDescription.equals(newDescription)) {
-                            return String.format("📦 Space Type '%s' was updated by %s: name to '%s', description to '%s'",
-                                    oldSpaceTypeName, performedBy, newSpaceTypeName, newDescription);
-                        } else if (!oldSpaceTypeName.equals(newSpaceTypeName)) {
-                            return String.format("📦 Space Type '%s' was updated by %s: name changed to '%s'",
-                                    oldSpaceTypeName, performedBy, newSpaceTypeName);
-                        } else if (!oldDescription.equals(newDescription)) {
-                            return String.format("📦 Space Type '%s' was updated by %s: description updated",
-                                    newSpaceTypeName, performedBy);
-                        } else {
-                            return String.format("📦 Space Type '%s' was updated by %s", newSpaceTypeName, performedBy);
-                        }
-                    } else {
-                        return String.format("📦 Space Type was updated by %s", performedBy);
-                    }
-
-                case "UserBranch":
-                    String userFullName = getStringValue(newMap, "userFullName");
-                    String userEmail = getStringValue(newMap, "userEmail");
-
-                    // Check for assigned branches
-                    Set<String> assignedBranches = getBranchesSet(newMap, "assignedBranches");
-                    if (!assignedBranches.isEmpty()) {
-                        return String.format("👤🏢 User '%s' (%s) was assigned branches: %s by %s",
-                                userFullName, userEmail, assignedBranches, performedBy);
-                    }
-
-                    // Check for removed branches
-                    Set<String> removedBranches = getBranchesSet(newMap, "removedBranches");
-                    if (!removedBranches.isEmpty()) {
-                        return String.format("👤🏢 User '%s' (%s) had branches removed: %s by %s",
-                                userFullName, userEmail, removedBranches, performedBy);
-                    }
-
-                    // Check for updated branches
-                    Set<String> newBranches = getBranchesSet(newMap, "newBranches");
-                    Set<String> oldBranches = getBranchesSet(oldMap, "oldBranches");
-                    if (!newBranches.isEmpty() && !oldBranches.isEmpty()) {
-                        return String.format("👤🏢 User '%s' (%s) branch assignment updated from %s to %s by %s",
-                                userFullName, userEmail, oldBranches, newBranches, performedBy);
-                    }
-
-                    return String.format("👤🏢 User branch assignment updated for '%s' by %s", userFullName, performedBy);
-
                 default:
                     String name = getNameFromData(newMap);
                     return String.format("📝 %s '%s' was updated by %s", tableName, name, performedBy);
@@ -601,14 +598,6 @@ public class AuditLogService {
                         return String.format("🗑️ Role was deleted by %s", performedBy);
                     }
 
-                case "Permission":
-                    String permName = getStringValue(data, "name");
-                    if (!permName.isEmpty()) {
-                        return String.format("🗑️ Permission '%s' was deleted by %s", permName, performedBy);
-                    } else {
-                        return String.format("🗑️ Permission was deleted by %s", performedBy);
-                    }
-
                 case "Branch":
                     String branchName = getStringValue(data, "name");
                     String branchAddress = getStringValue(data, "address");
@@ -617,35 +606,6 @@ public class AuditLogService {
                                 branchName, branchAddress, performedBy);
                     } else {
                         return String.format("🗑️ Branch was deleted by %s", performedBy);
-                    }
-
-                case "Space":
-                    String deletedSpaceCode = getStringValue(data, "spaceCode");
-                    String deletedSpaceLocation = getStringValue(data, "location");
-                    if (!deletedSpaceCode.isEmpty()) {
-                        return String.format("🗑️ Space '%s' (Location: %s) was deleted by %s",
-                                deletedSpaceCode, deletedSpaceLocation, performedBy);
-                    } else {
-                        return String.format("🗑️ Space was deleted by %s", performedBy);
-                    }
-
-                case "Floor":
-                    String deletedFloorLevel = getStringValue(data, "level");
-                    String deletedBranchId = getStringValue(data, "branchBranchId");
-                    if (!deletedFloorLevel.isEmpty()) {
-                        return String.format("🗑️ Floor 'Level %s' (Branch: %s) was deleted by %s",
-                                deletedFloorLevel, deletedBranchId, performedBy);
-                    } else {
-                        return String.format("🗑️ Floor was deleted by %s", performedBy);
-                    }
-
-                case "SpaceType":
-                    String deletedSpaceTypeName = getStringValue(data, "typeName");
-                    if (!deletedSpaceTypeName.isEmpty()) {
-                        return String.format("🗑️ Space Type '%s' was deleted by %s",
-                                deletedSpaceTypeName, performedBy);
-                    } else {
-                        return String.format("🗑️ Space Type was deleted by %s", performedBy);
                     }
 
                 default:
@@ -738,19 +698,6 @@ public class AuditLogService {
             changes.append("rent from ").append(oldRent).append(" to ").append(newRent).append(", ");
         }
 
-        // Check dates change
-        String oldStartDate = getStringValue(oldMap, "startDate");
-        String newStartDate = getStringValue(newMap, "startDate");
-        String oldEndDate = getStringValue(oldMap, "endDate");
-        String newEndDate = getStringValue(newMap, "endDate");
-
-        if (!oldStartDate.equals(newStartDate)) {
-            changes.append("start date updated, ");
-        }
-        if (!oldEndDate.equals(newEndDate)) {
-            changes.append("end date updated, ");
-        }
-
         if (changes.length() > 0) {
             changes.setLength(changes.length() - 2);
             return String.format("📝 Lease '%s' was updated by %s: %s", displayName, performedBy, changes.toString());
@@ -797,7 +744,24 @@ public class AuditLogService {
     }
 
     private String getNameFromData(Map<String, Object> data) {
-        // Try different key patterns for different entities
+        // Payment specific
+        if (data.containsKey("paymentId") && data.get("paymentId") != null) {
+            String paymentType = data.containsKey("paymentType") ?
+                    String.valueOf(data.get("paymentType")) : "Payment";
+            String amount = data.containsKey("amount") ?
+                    String.valueOf(data.get("amount")) : "Unknown";
+
+            if ("LEASE".equals(paymentType)) {
+                String leaseId = data.containsKey("leaseId") ?
+                        String.valueOf(data.get("leaseId")) : "Unknown";
+                return String.format("Lease Payment #%s", leaseId);
+            } else if ("UTILITY".equals(paymentType)) {
+                String utilityType = data.containsKey("utilityType") ?
+                        String.valueOf(data.get("utilityType")) : "Utility";
+                return String.format("%s Payment", utilityType);
+            }
+            return String.format("Payment #%s", data.get("paymentId"));
+        }
 
         // Lease specific - check for leaseId first
         if (data.containsKey("leaseId") && data.get("leaseId") != null) {
@@ -811,10 +775,6 @@ public class AuditLogService {
         else if (data.containsKey("tenantName") && data.get("tenantName") != null &&
                 data.containsKey("spaceName") && data.get("spaceName") != null) {
             return String.valueOf(data.get("tenantName")) + " - " + String.valueOf(data.get("spaceName"));
-        }
-        // Lease - check for tenant name only
-        else if (data.containsKey("tenantName") && data.get("tenantName") != null) {
-            return String.valueOf(data.get("tenantName"));
         }
         // Space specific
         else if (data.containsKey("spaceCode") && data.get("spaceCode") != null) {
@@ -914,7 +874,7 @@ public class AuditLogService {
             auditLog.setTableAffected("User");
             auditLog.setRecordId(recordId);
             auditLog.setTimestamp(LocalDateTime.now());
-            auditLog.setPerformedBy(fullName); // Use the actual fullName
+            auditLog.setPerformedBy(fullName);
 
             // Request information
             if (request != null) {
@@ -943,7 +903,7 @@ public class AuditLogService {
         }
     }
 
-    // Add this method to your AuditLogService class
+    // Custom action logging
     @Transactional("auditTransactionManager")
     public void logCustomAction(String action, String message, Object details) {
         try {
@@ -985,135 +945,19 @@ public class AuditLogService {
             e.printStackTrace();
         }
     }
-    // Add this method to your existing AuditLogService class
-    private String generateUserFriendlyMessage(String action, String tableName, String recordId,
-                                               Map<String, Object> oldData, Map<String, Object> newData,
-                                               String performedBy) {
-        switch (action) {
-            case "CREATE":
-                if ("Payment".equals(tableName)) {
-                    String amount = newData != null && newData.get("amount") != null ?
-                            newData.get("amount").toString() : "Unknown";
-                    String paymentType = newData != null ? (String) newData.get("paymentType") : "Unknown";
-                    if ("LEASE".equals(paymentType)) {
-                        String leaseId = newData != null && newData.get("leaseId") != null ?
-                                newData.get("leaseId").toString() : "Unknown";
-                        return String.format("💰 %s created LEASE payment for Lease %s (Amount: %s)",
-                                performedBy, leaseId, amount);
-                    } else if ("UTILITY".equals(paymentType)) {
-                        String utilityType = newData != null ? (String) newData.get("utilityType") : "Unknown";
-                        return String.format("💰 %s created UTILITY payment for %s (Amount: %s)",
-                                performedBy, utilityType, amount);
-                    }
-                    return String.format("💰 %s created %s payment (Amount: %s)",
-                            performedBy, paymentType, amount);
-                }
-                break;
 
-            case "UPDATE":
-                if ("Payment".equals(tableName)) {
-                    String amount = newData != null && newData.get("amount") != null ?
-                            newData.get("amount").toString() : "Unknown";
-                    String paymentType = newData != null ? (String) newData.get("paymentType") : "Unknown";
-
-                    if ("LEASE".equals(paymentType)) {
-                        String leaseId = newData != null && newData.get("leaseId") != null ?
-                                newData.get("leaseId").toString() : "Unknown";
-                        return String.format("📝 %s updated LEASE payment for Lease %s (Amount: %s)",
-                                performedBy, leaseId, amount);
-                    } else if ("UTILITY".equals(paymentType)) {
-                        String utilityType = newData != null ? (String) newData.get("utilityType") : "Unknown";
-                        return String.format("📝 %s updated UTILITY payment for %s (Amount: %s)",
-                                performedBy, utilityType, amount);
-                    }
-                    return String.format("📝 %s updated payment (Amount: %s)", performedBy, amount);
-                }
-                break;
-
-            case "DELETE":
-                if ("Payment".equals(tableName)) {
-                    String amount = oldData != null && oldData.get("amount") != null ?
-                            oldData.get("amount").toString() : "Unknown";
-                    String paymentType = oldData != null ? (String) oldData.get("paymentType") : "Unknown";
-
-                    if ("LEASE".equals(paymentType)) {
-                        String leaseId = oldData != null && oldData.get("leaseId") != null ?
-                                oldData.get("leaseId").toString() : "Unknown";
-                        return String.format("🗑️ %s deleted LEASE payment for Lease %s (Amount: %s)",
-                                performedBy, leaseId, amount);
-                    } else if ("UTILITY".equals(paymentType)) {
-                        String utilityType = oldData != null ? (String) oldData.get("utilityType") : "Unknown";
-                        return String.format("🗑️ %s deleted UTILITY payment for %s (Amount: %s)",
-                                performedBy, utilityType, amount);
-                    }
-                    return String.format("🗑️ %s deleted payment (Amount: %s)", performedBy, amount);
-                }
-                break;
-
-            case "PAYMENT_STATUS_UPDATE":
-                String oldStatus = newData != null ? (String) newData.get("oldStatus") : "Unknown";
-                String newStatus = newData != null ? (String) newData.get("newStatus") : "Unknown";
-                String paymentAmount = newData != null && newData.get("amount") != null ?
-                        newData.get("amount").toString() : "Unknown";
-                String paymentType = newData != null ? (String) newData.get("paymentType") : "Unknown";
-
-                if ("LEASE".equals(paymentType)) {
-                    String leaseId = newData != null && newData.get("leaseId") != null ?
-                            newData.get("leaseId").toString() : "Unknown";
-                    return String.format("🔄 %s changed LEASE payment status from %s to %s (Lease: %s, Amount: %s)",
-                            performedBy, oldStatus, newStatus, leaseId, paymentAmount);
-                } else if ("UTILITY".equals(paymentType)) {
-                    String utilityType = newData != null ? (String) newData.get("utilityType") : "Unknown";
-                    return String.format("🔄 %s changed UTILITY payment status from %s to %s (%s, Amount: %s)",
-                            performedBy, oldStatus, newStatus, utilityType, paymentAmount);
-                } else {
-                    return String.format("🔄 %s changed payment status from %s to %s (Amount: %s)",
-                            performedBy, oldStatus, newStatus, paymentAmount);
-                }
-
-            case "UTILITY_CANCELLED":
-                String utilityType = oldData != null ? (String) oldData.get("utilityType") : "Unknown";
-                String amount = oldData != null && oldData.get("amount") != null ?
-                        oldData.get("amount").toString() : "Unknown";
-                return String.format("❌ %s cancelled utility: %s (Amount: %s)",
-                        performedBy, utilityType, amount);
-
-            case "UTILITY_MARKED_PAID":
-                String paidUtilityType = newData != null ? (String) newData.get("utilityType") : "Unknown";
-                String paidAmount = newData != null && newData.get("amount") != null ?
-                        newData.get("amount").toString() : "Unknown";
-                return String.format("✅ %s marked utility as paid: %s (Amount: %s)",
-                        performedBy, paidUtilityType, paidAmount);
-
-            default:
-                return String.format("%s performed %s on %s: %s",
-                        performedBy, action, tableName, recordId);
-        }
-
-        return String.format("%s performed %s on %s: %s",
-                performedBy, action, tableName, recordId);
-    }
-
-    // Add this static method to AuditLogService class
+    // Static method to get current user from ThreadLocal
     public static String getCurrentUserFromThreadLocal() {
         try {
-            // Access ThreadLocal variables using reflection
-            java.lang.reflect.Field currentUserField = AuditLogService.class.getDeclaredField("currentUser");
-            java.lang.reflect.Field currentUserFullNameField = AuditLogService.class.getDeclaredField("currentUserFullName");
-
-            currentUserField.setAccessible(true);
-            currentUserFullNameField.setAccessible(true);
-
-            ThreadLocal<String> currentUserTL = (ThreadLocal<String>) currentUserField.get(null);
-            ThreadLocal<String> currentUserFullNameTL = (ThreadLocal<String>) currentUserFullNameField.get(null);
-
-            String fullName = currentUserFullNameTL != null ? currentUserFullNameTL.get() : null;
-            if (fullName != null && !fullName.trim().isEmpty()) {
+            // Try full name first
+            String fullName = currentUserFullName.get();
+            if (fullName != null && !fullName.trim().isEmpty() && !"System".equals(fullName)) {
                 return fullName;
             }
 
-            String username = currentUserTL != null ? currentUserTL.get() : null;
-            if (username != null && !username.trim().isEmpty()) {
+            // Then try username
+            String username = currentUser.get();
+            if (username != null && !username.trim().isEmpty() && !"System".equals(username)) {
                 return username;
             }
         } catch (Exception e) {

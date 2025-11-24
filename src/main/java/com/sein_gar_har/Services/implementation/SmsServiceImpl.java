@@ -114,4 +114,40 @@ public class SmsServiceImpl implements PushMessageService {
     public PushMessage findById(UUID messageUuid) {
         return pushMessageRepository.findById(messageUuid).orElse(null);
     }
+
+    @Override
+    public void deleteMessage(String messageId) {
+        try {
+            pushMessageRepository.deleteById(UUID.fromString(messageId));
+        } catch (Exception e) {
+            throw new RuntimeException("Error deleting message with id: " + messageId, e);
+        }
+    }
+
+    @Override
+    public int deleteAllUserMessages(String userId) {
+        try {
+            UUID id = UUID.fromString(userId);
+            List<PushMessage> userMessages = pushMessageRepository.findByRecipientUser_Id(id);
+            int count = userMessages.size();
+            pushMessageRepository.deleteAll(userMessages);
+            return count;
+        } catch (Exception e) {
+            throw new RuntimeException("Error deleting all messages for user: " + userId, e);
+        }
+    }
+
+    @Override
+    public int deleteReadMessages(String userId) {
+        try {
+            UUID id = UUID.fromString(userId);
+            List<PushMessage> readMessages = pushMessageRepository.findByRecipientUser_IdAndReadby(id, true);
+            int count = readMessages.size();
+            pushMessageRepository.deleteAll(readMessages);
+            return count;
+        } catch (Exception e) {
+            throw new RuntimeException("Error deleting read messages for user: " + userId, e);
+        }
+    }
+
 }
