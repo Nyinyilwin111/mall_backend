@@ -9,6 +9,7 @@ import com.sein_gar_har.dto.request.UtilityUpdateRequestDTO;
 import com.sein_gar_har.dto.response.UtilityResponseDTO;
 import com.sein_gar_har.entity.Space;
 import com.sein_gar_har.entity.Utility;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -34,6 +35,9 @@ public class UtilityServiceImpl implements UtilityService {
 
     @Autowired
     private SpaceRepository spaceRepository;
+
+    @Autowired
+    private HttpServletRequest request;
 
     private final AuditLogService auditLogService;
 
@@ -61,8 +65,10 @@ public class UtilityServiceImpl implements UtilityService {
     @Override
     @Transactional
     public UtilityResponseDTO createUtility(UtilityRequestDTO utilityRequestDTO) {
-        // ✅ SET: User context before operation
-        String currentUser = getCurrentUserWithMultipleStrategies();
+        // ✅ IMPROVED: User context detection
+        String currentUser = getCurrentUserWithEnhancedStrategies();
+        System.out.println("=== UTILITY CREATE ===");
+        System.out.println("Detected User: " + currentUser);
         AuditLogService.setMaintenanceOperationUser(currentUser, currentUser);
 
         try {
@@ -130,8 +136,10 @@ public class UtilityServiceImpl implements UtilityService {
     @Override
     @Transactional
     public UtilityResponseDTO updateUtility(Long id, UtilityUpdateRequestDTO utilityUpdateRequestDTO) {
-        // ✅ SET: User context before operation
-        String currentUser = getCurrentUserWithMultipleStrategies();
+        // ✅ IMPROVED: User context detection
+        String currentUser = getCurrentUserWithEnhancedStrategies();
+        System.out.println("=== UTILITY UPDATE ===");
+        System.out.println("Detected User: " + currentUser);
         AuditLogService.setMaintenanceOperationUser(currentUser, currentUser);
 
         try {
@@ -208,8 +216,10 @@ public class UtilityServiceImpl implements UtilityService {
     @Override
     @Transactional
     public boolean deleteUtility(Long id) {
-        // ✅ SET: User context before operation
-        String currentUser = getCurrentUserWithMultipleStrategies();
+        // ✅ IMPROVED: User context detection
+        String currentUser = getCurrentUserWithEnhancedStrategies();
+        System.out.println("=== UTILITY DELETE ===");
+        System.out.println("Detected User: " + currentUser);
         AuditLogService.setMaintenanceOperationUser(currentUser, currentUser);
 
         try {
@@ -251,8 +261,10 @@ public class UtilityServiceImpl implements UtilityService {
     @Override
     @Transactional
     public boolean markAsPaid(Long utilityId) {
-        // ✅ SET: User context before operation
-        String currentUser = getCurrentUserWithMultipleStrategies();
+        // ✅ IMPROVED: User context detection
+        String currentUser = getCurrentUserWithEnhancedStrategies();
+        System.out.println("=== UTILITY MARK AS PAID ===");
+        System.out.println("Detected User: " + currentUser);
         AuditLogService.setMaintenanceOperationUser(currentUser, currentUser);
 
         try {
@@ -300,73 +312,94 @@ public class UtilityServiceImpl implements UtilityService {
                 .collect(Collectors.toList());
     }
 
-    // ✅ ADD: User context methods (copy from BranchServiceImpl)
-    private String getCurrentUserWithMultipleStrategies() {
-        // Strategy 1: Try Security Context first
-        String userFromSecurity = getCurrentUserFromSecurityContext();
-        if (!"System".equals(userFromSecurity)) {
-            return userFromSecurity;
+    // ✅ FIXED: Enhanced user detection with proper header checking
+    private String getCurrentUserWithEnhancedStrategies() {
+        System.out.println("=== ENHANCED USER DETECTION ===");
+
+        // Strategy 1: Check ThreadLocal first (for maintenance operations)
+        String threadLocalUser = getCurrentUserFromThreadLocal();
+        System.out.println("ThreadLocal User: " + threadLocalUser);
+
+        if (threadLocalUser != null && !threadLocalUser.trim().isEmpty() && !"System".equals(threadLocalUser)) {
+            return threadLocalUser;
         }
 
-        // Strategy 2: Try JWT Token from Authorization header
-        String userFromJwt = getCurrentUserFromJwtToken();
-        if (!"System".equals(userFromJwt)) {
-            return userFromJwt;
+        // Strategy 2: Check HTTP Headers from frontend
+        String headerUser = getCurrentUserFromHeaders();
+        System.out.println("Header User: " + headerUser);
+
+        if (headerUser != null && !headerUser.trim().isEmpty() && !"System".equals(headerUser)) {
+            return headerUser;
         }
 
-        // Strategy 3: Last resort - check if there's a test header
-        String userFromHeader = getCurrentUserFromCustomHeader();
-        if (!"System".equals(userFromHeader)) {
-            return userFromHeader;
+        // Strategy 3: Security Context
+        String securityUser = getCurrentUserFromSecurityContext();
+        System.out.println("Security Context User: " + securityUser);
+
+        if (securityUser != null && !securityUser.trim().isEmpty() && !"System".equals(securityUser)) {
+            return securityUser;
         }
 
+        System.out.println("⚠️ No user detected, defaulting to System");
         return "System";
+    }
+
+    private String getCurrentUserFromThreadLocal() {
+        try {
+            String threadLocalUser = AuditLogService.getCurrentUserFromThreadLocal();
+            System.out.println("ThreadLocal detection - User: " + threadLocalUser);
+
+            if (threadLocalUser != null && !threadLocalUser.trim().isEmpty() && !"System".equals(threadLocalUser)) {
+                return threadLocalUser;
+            }
+        } catch (Exception e) {
+            System.err.println("Error in ThreadLocal strategy: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private String getCurrentUserFromHeaders() {
+        try {
+            if (request != null) {
+                // Check for the custom headers sent by frontend
+                String userContext = request.getHeader("X-User-Context");
+                String userEmail = request.getHeader("X-User-Email");
+
+                System.out.println("Header - X-User-Context: " + userContext);
+                System.out.println("Header - X-User-Email: " + userEmail);
+
+                if (userContext != null && !userContext.trim().isEmpty() && !"System".equals(userContext)) {
+                    return userContext;
+                }
+
+
+            }
+        } catch (Exception e) {
+            System.err.println("Error in header strategy: " + e.getMessage());
+        }
+        return null;
     }
 
     private String getCurrentUserFromSecurityContext() {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            System.out.println("Security Context - Authentication: " + authentication);
+
             if (authentication != null && authentication.isAuthenticated()) {
                 Object principal = authentication.getPrincipal();
-                return extractUsernameFromPrincipal(principal);
+                System.out.println("Security Context - Principal: " + principal);
+
+                String username = extractUsernameFromPrincipal(principal);
+                System.out.println("Security Context - Extracted Username: " + username);
+
+                if (isValidUsername(username)) {
+                    return username;
+                }
             }
         } catch (Exception e) {
             System.err.println("Error in Security Context strategy: " + e.getMessage());
         }
         return "System";
-    }
-
-    private String getCurrentUserFromJwtToken() {
-        // Implement based on your JWT token provider
-        // This is a simplified version - adjust based on your actual implementation
-        try {
-            String token = extractTokenFromRequest();
-            if (token != null && !token.trim().isEmpty()) {
-                // Use your token provider to extract user info
-                // This is a placeholder - replace with your actual implementation
-                return "UserFromJWT"; // Replace with actual user extraction
-            }
-        } catch (Exception e) {
-            System.err.println("JWT Strategy Error: " + e.getMessage());
-        }
-        return "System";
-    }
-
-    private String getCurrentUserFromCustomHeader() {
-        try {
-            // Implement based on your HttpServletRequest
-            // This is a placeholder - replace with your actual implementation
-            return "System";
-        } catch (Exception e) {
-            System.err.println("Error in custom header strategy: " + e.getMessage());
-        }
-        return "System";
-    }
-
-    private String extractTokenFromRequest() {
-        // Implement token extraction from HttpServletRequest
-        // This is a placeholder
-        return null;
     }
 
     private String extractUsernameFromPrincipal(Object principal) {
@@ -376,5 +409,13 @@ public class UtilityServiceImpl implements UtilityService {
             return (String) principal;
         }
         return null;
+    }
+
+    private boolean isValidUsername(String username) {
+        return username != null &&
+                !username.trim().isEmpty() &&
+                !"anonymousUser".equals(username) &&
+                !"system".equalsIgnoreCase(username) &&
+                !"null".equalsIgnoreCase(username);
     }
 }
