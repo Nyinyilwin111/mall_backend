@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+              http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="space_floor_report"
+              pageWidth="595"
+              pageHeight="842"
+              columnWidth="555"
+              leftMargin="20"
+              rightMargin="20"
+              topMargin="20"
+              bottomMargin="20">
+
+    <parameter name="REPORT_TITLE" class="java.lang.String">
+        <defaultValueExpression><![CDATA["FLOOR SPACE REPORT"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="COMPANY_NAME" class="java.lang.String">
+        <defaultValueExpression><![CDATA["Sein Gar Har Real Estate"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="REPORT_DATE" class="java.util.Date">
+        <defaultValueExpression><![CDATA[new java.util.Date()]]></defaultValueExpression>
+    </parameter>
+    <parameter name="FLOOR_ID" class="java.lang.Integer">
+        <defaultValueExpression><![CDATA[0]]></defaultValueExpression>
+    </parameter>
+    <parameter name="FLOOR_LEVEL" class="java.lang.String">
+        <defaultValueExpression><![CDATA[""]]></defaultValueExpression>
+    </parameter>
+
+    <queryString>
+        <![CDATA[
+        SELECT
+            s.space_code,
+            s.location,
+            s.size_sqft,
+            s.price,
+            s.status,
+            st.type_name as space_type,
+            f.level as floor_level,
+            b.name as branch_name,
+            s.amenities
+        FROM space s
+        LEFT JOIN spacetype st ON s.space_type_id = st.space_type_id
+        LEFT JOIN floor f ON s.Floor_floor_id = f.floor_id
+        LEFT JOIN branches b ON f.branch_branch_id = b.id
+        WHERE f.floor_id = $P{FLOOR_ID}
+        ORDER BY s.space_code
+        ]]>
+    </queryString>
+
+    <field name="space_code" class="java.lang.String"/>
+    <field name="location" class="java.lang.String"/>
+    <field name="size_sqft" class="java.lang.Double"/>
+    <field name="price" class="java.lang.Double"/>
+    <field name="status" class="java.lang.String"/>
+    <field name="space_type" class="java.lang.String"/>
+    <field name="floor_level" class="java.lang.String"/>
+    <field name="branch_name" class="java.lang.String"/>
+    <field name="amenities" class="java.lang.String"/>
+
+    <variable name="TOTAL_SPACES" class="java.lang.Integer" calculation="Count">
+        <variableExpression><![CDATA[$F{space_code}]]></variableExpression>
+    </variable>
+
+    <variable name="VACANT_COUNT" class="java.lang.Integer" calculation="Count">
+        <variableExpression><![CDATA["VACANT".equals($F{status}) ? $F{space_code} : null]]></variableExpression>
+    </variable>
+
+    <variable name="OCCUPIED_COUNT" class="java.lang.Integer" calculation="Count">
+        <variableExpression><![CDATA["OCCUPIED".equals($F{status}) ? $F{space_code} : null]]></variableExpression>
+    </variable>
+
+    <variable name="TOTAL_AREA" class="java.lang.Double" calculation="Sum">
+        <variableExpression><![CDATA[$F{size_sqft}]]></variableExpression>
+    </variable>
+
+    <title>
+        <band height="120">
+            <rectangle>
+                <reportElement x="0" y="0" width="595" height="100" backcolor="#2C3E50"/>
+            </rectangle>
+
+            <textField>
+                <reportElement x="20" y="15" width="300" height="25" forecolor="#FFFFFF"/>
+                <textElement>
+                    <font size="16" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{COMPANY_NAME}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="20" y="45" width="300" height="30" forecolor="#ECF0F1"/>
+                <textElement>
+                    <font size="20" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression>
+            </textField>
+
+            <textField pattern="MMMMM dd, yyyy">
+                <reportElement x="400" y="15" width="175" height="20" forecolor="#BDC3C7"/>
+                <textElement textAlignment="Right">
+                    <font size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{REPORT_DATE}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="20" y="80" width="400" height="15" forecolor="#BDC3C7"/>
+                <textElement>
+                    <font size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                    "Floor: " + $P{FLOOR_LEVEL} + " (ID: " + $P{FLOOR_ID} + ")"
+                ]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="40">
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="35" backcolor="#34495E"/>
+            </rectangle>
+
+            <staticText>
+                <reportElement x="10" y="8" width="80" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true"/>
+                </textElement>
+                <text><![CDATA[Space Code]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="100" y="8" width="100" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true"/>
+                </textElement>
+                <text><![CDATA[Type]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="210" y="8" width="80" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true"/>
+                </textElement>
+                <text><![CDATA[Size]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="300" y="8" width="80" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true"/>
+                </textElement>
+                <text><![CDATA[Price]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="390" y="8" width="70" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true"/>
+                </textElement>
+                <text><![CDATA[Status]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="470" y="8" width="75" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true"/>
+                </textElement>
+                <text><![CDATA[Location]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="35">
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="35" mode="Opaque" backcolor="#F8F9FA">
+                    <printWhenExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></printWhenExpression>
+                </reportElement>
+            </rectangle>
+
+            <textField>
+                <reportElement x="10" y="8" width="80" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font size="10" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{space_code}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="100" y="8" width="100" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{space_type}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="210" y="8" width="80" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{size_sqft} != null ? $F{size_sqft} + " sq.ft" : "N/A"]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="300" y="8" width="80" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font size="10" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{price} != null ? "$ " + $F{price} : "N/A"]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="390" y="8" width="70" height="20"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{status}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="470" y="8" width="75" height="20"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{location}]]></textFieldExpression>
+            </textField>
+
+            <line>
+                <reportElement x="0" y="34" width="555" height="1"/>
+                <graphicElement>
+                    <pen lineWidth="0.5" lineColor="#E9ECEF"/>
+                </graphicElement>
+            </line>
+        </band>
+    </detail>
+
+    <summary>
+        <band height="100">
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="90" backcolor="#2C3E50"/>
+            </rectangle>
+
+            <textField evaluationTime="Report">
+                <reportElement x="20" y="15" width="200" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Total Spaces: " + $V{TOTAL_SPACES}]]></textFieldExpression>
+            </textField>
+
+            <textField evaluationTime="Report">
+                <reportElement x="20" y="40" width="200" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Vacant: " + $V{VACANT_COUNT}]]></textFieldExpression>
+            </textField>
+
+            <textField evaluationTime="Report">
+                <reportElement x="150" y="40" width="200" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Occupied: " + $V{OCCUPIED_COUNT}]]></textFieldExpression>
+            </textField>
+
+            <textField evaluationTime="Report">
+                <reportElement x="20" y="65" width="200" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Total Area: " + ($V{TOTAL_AREA} != null ? $V{TOTAL_AREA} + " sq.ft" : "0 sq.ft")]]></textFieldExpression>
+            </textField>
+
+            <textField pattern="HH:mm:ss">
+                <reportElement x="350" y="15" width="185" height="20" forecolor="#BDC3C7"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>

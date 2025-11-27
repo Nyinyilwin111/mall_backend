@@ -45,6 +45,7 @@ public class SecurityConfig {
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/api/branches/**").permitAll()
                         .requestMatchers("/api/spaces/**").permitAll()
+                        .requestMatchers("/api/reports/**").permitAll()
                         .requestMatchers("/api/space-types/**").permitAll()
                         .requestMatchers("/api/floors/**").permitAll()
                         .requestMatchers("/error").permitAll()

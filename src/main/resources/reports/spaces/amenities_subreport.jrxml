@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+              http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="amenities_subreport"
+              pageWidth="260"
+              pageHeight="802"
+              columnWidth="130"
+              columnCount="2"
+              printOrder="Horizontal"
+              leftMargin="0"
+              rightMargin="0"
+              topMargin="0"
+              bottomMargin="0"
+              isIgnorePagination="false">
+
+    <field name="amenity" class="java.lang.String"/>
+
+    <detail>
+        <band height="20">
+            <rectangle radius="4">
+                <reportElement x="5" y="6" width="8" height="8" backcolor="#27AE60"/>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#27AE60"/>
+                </graphicElement>
+            </rectangle>
+
+            <textField isBlankWhenNull="true">
+                <reportElement x="18" y="0" width="110" height="20" forecolor="#383838"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{amenity}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="0"/>
+    </pageFooter>
+
+</jasperReport>

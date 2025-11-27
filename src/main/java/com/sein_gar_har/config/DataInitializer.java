@@ -42,14 +42,15 @@ public class DataInitializer implements CommandLineRunner {
         Permission BranchManagement = createPermissionIfNotFound("BRANCH_MANAGEMENT", "Management branches");
         Permission LeaseManagement = createPermissionIfNotFound("LEASE_MANAGEMENT","manage leases");
         Permission AuditManagement = createPermissionIfNotFound("AUDIT_LOG_VIEW", "manage audit");
+        Permission ReportManagement = createPermissionIfNotFound("REPORT_READ", "extract report");
 
         // Create roles
         Role ceoRole = createRoleIfNotFound("CEO", "Chief Executive Officer with full access",
-                new HashSet<>(Arrays.asList(userRead, userWrite, spaceManagement, bookingManagement,userManagement,AuditManagement, roleManagement, BranchManagement,
+                new HashSet<>(Arrays.asList(userRead, userWrite, spaceManagement, bookingManagement,userManagement,AuditManagement, roleManagement, BranchManagement,ReportManagement,
                         SpaceRead, LeaseManagement)));
 
         Role managerRole = createRoleIfNotFound("MANAGER", "Store Manager",
-                new HashSet<>(Arrays.asList(userRead, spaceManagement, bookingManagement)));
+                new HashSet<>(Arrays.asList(userRead, spaceManagement,ReportManagement, bookingManagement)));
 
         Role staffRole = createRoleIfNotFound("STAFF", "Store Staff",
                 new HashSet<>(Arrays.asList(userRead, bookingManagement)));
