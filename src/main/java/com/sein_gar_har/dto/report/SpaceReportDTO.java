@@ -22,8 +22,8 @@ public class SpaceReportDTO {
     private Double sizeSqft;
     private BigDecimal price;
     private String amenities;
-    private List<String> amenityList; // This stays as List<String>
-    private List<AmenityItem> amenityItems; // ✅ ADD THIS: For subreport data source
+    private List<String> amenityList;
+    private List<AmenityItem> amenityItems;
     private String status;
     private String spaceType;
     private String floorLevel;

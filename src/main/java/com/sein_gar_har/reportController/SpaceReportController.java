@@ -161,29 +161,53 @@ public class SpaceReportController {
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/list")
+    @PostMapping("/list")
     public ResponseEntity<byte[]> generateSpaceListReport(
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String spaceType,
-            @RequestParam(required = false) String branch,
+            @RequestBody(required = false) Map<String, Object> filterParams,
             @RequestParam(defaultValue = "pdf") String format) {
 
         try {
+            log.info("🔍 Received POST request for space list report");
+            log.info("🔍 Request body (filterParams): {}", filterParams);
+            log.info("🔍 Format: {}", format);
+
             Map<String, Object> parameters = new HashMap<>();
-            if (status != null) parameters.put("status", status);
-            if (spaceType != null) parameters.put("spaceType", spaceType);
-            if (branch != null) parameters.put("branch", branch);
+
+            // Extract filters from JSON body
+            if (filterParams != null) {
+                log.info("🔍 Processing filter parameters:");
+
+                if (filterParams.containsKey("status")) {
+                    Object statusValue = filterParams.get("status");
+                    parameters.put("status", statusValue);
+                    log.info("✅ Added status filter: {}", statusValue);
+                }
+                if (filterParams.containsKey("spaceType")) {
+                    Object spaceTypeValue = filterParams.get("spaceType");
+                    parameters.put("spaceType", spaceTypeValue);
+                    log.info("✅ Added spaceType filter: {}", spaceTypeValue);
+                }
+                if (filterParams.containsKey("branch")) {
+                    Object branchValue = filterParams.get("branch");
+                    parameters.put("branch", branchValue);
+                    log.info("✅ Added branch filter: {}", branchValue);
+                }
+            }
+
+            log.info("🎯 Final parameters sent to Jasper: {}", parameters);
 
             byte[] reportContent = spaceReportService.generateSpaceListReport(parameters, format);
+
+            log.info("✅ Report generated successfully, size: {} bytes", reportContent.length);
 
             return createResponse(reportContent, "space-list-report", format);
 
         } catch (JRException e) {
-            log.error("Error generating space list report", e);
+            log.error("❌ Error generating space list report", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(("Error generating report: " + e.getMessage()).getBytes());
         } catch (Exception e) {
-            log.error("Unexpected error generating space list report", e);
+            log.error("❌ Unexpected error generating space list report", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(("Unexpected error: " + e.getMessage()).getBytes());
         }

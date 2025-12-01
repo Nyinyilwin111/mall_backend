@@ -27,6 +27,7 @@ public class ReportCompiler {
             net.sf.jasperreports.engine.JasperReport compiledReport = JasperCompileManager.compileReport(reportStream);
             compiledReports.put(reportName, compiledReport);
             reportStream.close();
+            log.info("Successfully compiled report: {}", reportName);
         } catch (Exception e) {
             throw new RuntimeException("Failed to compile report: " + reportName, e);
         }
@@ -40,7 +41,7 @@ public class ReportCompiler {
                 return "reports/spaces/space_detail_page1.jrxml";
             case "space_contact_page2":
                 return "reports/spaces/space_contact_page2.jrxml";
-            case "space_detail_report": // Main report with both pages
+            case "space_detail_report":
                 return "reports/spaces/space_detail_report.jrxml";
             case "space_list_report":
                 return "reports/spaces/space_list_report.jrxml";
@@ -48,6 +49,8 @@ public class ReportCompiler {
                 return "reports/spaces/space_availability_report.jrxml";
             case "space_floor_report":
                 return "reports/spaces/space_floor_report.jrxml";
+            case "branch_income_report": // Add branch income report
+                return "reports/branches/BranchIncomeReport.jrxml";
             default:
                 throw new IllegalArgumentException("Unknown report: " + reportName);
         }
@@ -60,4 +63,7 @@ public class ReportCompiler {
     public void clearCache() {
         compiledReports.clear();
     }
+
+    // Add logging
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ReportCompiler.class);
 }

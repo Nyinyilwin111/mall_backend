@@ -14,12 +14,14 @@ public class UtilityResponseDTO {
     private UUID spaceId;
     private String spaceCode;
     private String spaceLocation;
+
+    private UUID tenantId;
+    private String tenantName;
+    private String tenantEmail;
+
     private String utilityType;
     private String description;
-
-    // ADDED: Amount field
     private BigDecimal amount;
-
     private LocalDate dueDate;
     private String billingPeriod;
     private String usageUnit;

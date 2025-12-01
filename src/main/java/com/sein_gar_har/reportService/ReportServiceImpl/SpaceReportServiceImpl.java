@@ -728,7 +728,8 @@
 //}
 
 
-package com.sein_gar_har.reportService.spaceReportServiceImpl;
+
+package com.sein_gar_har.reportService.ReportServiceImpl;
 
 import com.sein_gar_har.RepositoryMain.SpaceRepository;
 import com.sein_gar_har.Services.BranchService;
@@ -742,7 +743,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
-import net.sf.jasperreports.engine.export.JRPdfExporter;
 import net.sf.jasperreports.engine.export.JRXlsExporter;
 import net.sf.jasperreports.engine.export.ooxml.JRDocxExporter;
 import net.sf.jasperreports.engine.export.ooxml.JRXlsxExporter;
@@ -751,6 +751,8 @@ import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -762,6 +764,8 @@ import java.math.BigDecimal;
 import java.net.URL;
 import java.net.URLConnection;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -782,6 +786,9 @@ public class SpaceReportServiceImpl implements SpaceReportService {
 
     @Autowired
     private ReportCompiler reportCompiler;
+
+    @Autowired
+    private ResourceLoader resourceLoader;
 
     // Supported image formats by JasperReports
     private static final Set<String> SUPPORTED_FORMATS = Set.of(
@@ -1351,12 +1358,11 @@ public class SpaceReportServiceImpl implements SpaceReportService {
     private void addPremiumParameters(Map<String, Object> parameters) {
         parameters.putIfAbsent("COMPANY_NAME", "Sein Gar Har");
         parameters.putIfAbsent("COMPANY_SLOGAN", "Quality Properties, Exceptional Service");
-        parameters.putIfAbsent("COMPANY_LOGO", "classpath:reports/images/SGH-logo.png");
         parameters.putIfAbsent("REPORT_DATE", new Date());
         parameters.putIfAbsent("GENERATED_BY", "Report System");
         parameters.putIfAbsent("REPORT_TIMEZONE", "Asia/Yangon");
         parameters.putIfAbsent("WATERMARK_TEXT", "CONFIDENTIAL");
-        parameters.putIfAbsent("CONTACT_PERSON", "Sein Gar Har Property Manager");
+        parameters.putIfAbsent("CONTACT_PERSON", "Sein Gar Har Mall Manager");
         parameters.putIfAbsent("CONTACT_EMAIL", "info@seingarhar.com");
         parameters.putIfAbsent("CONTACT_PHONE", "09798751111 | 09784425961");
         parameters.putIfAbsent("WEBSITE", "www.seingarhar.com");
@@ -1468,26 +1474,261 @@ public class SpaceReportServiceImpl implements SpaceReportService {
     @Override
     public byte[] generateSpaceListReport(Map<String, Object> parameters, String format) throws JRException {
         Connection connection = null;
+        InputStream logoStream = null;
         try {
+            // Debug resources first
+            debugResources();
+
             connection = dataSource.getConnection();
+
+            // Log database info
+            DatabaseMetaData metaData = connection.getMetaData();
+            log.info("🔍 Database: {} {}", metaData.getDatabaseProductName(), metaData.getDatabaseProductVersion());
+
+            // Test if tables exist
+            try (ResultSet tables = metaData.getTables(null, null, "space", null)) {
+                if (tables.next()) {
+                    log.info("✅ Space table exists");
+                } else {
+                    log.error("❌ Space table does not exist");
+                }
+            }
+
             JasperReport jasperReport = reportCompiler.getCompiledReport("space_list_report");
+
+            // ✅ FIXED: Load logo using multiple methods with fallback
+            logoStream = loadLogoWithMultipleMethods();
+            if (logoStream != null) {
+                parameters.put("COMPANY_LOGO", logoStream);
+                log.info("✅ Logo successfully loaded and added to parameters");
+
+                // Test if stream is readable
+                try {
+                    // Create a fresh stream after checking
+                    InputStream freshStream = loadLogoWithMultipleMethods();
+                    parameters.put("COMPANY_LOGO", freshStream);
+                    log.info("✅ Fresh logo stream loaded");
+                } catch (Exception e) {
+                    log.warn("Could not check stream availability", e);
+                }
+            } else {
+                log.warn("⚠️ Logo not found, using placeholder");
+                // Create a simple placeholder logo
+                logoStream = createPlaceholderLogo();
+                if (logoStream != null) {
+                    parameters.put("COMPANY_LOGO", logoStream);
+                    log.info("✅ Placeholder logo created and added");
+                }
+            }
+
+            // Add other premium parameters
             addPremiumParameters(parameters);
+
+            log.info("🔍 Parameters keys: {}", parameters.keySet());
+            log.info("🔍 COMPANY_LOGO parameter type: {}",
+                    parameters.get("COMPANY_LOGO") != null ?
+                            parameters.get("COMPANY_LOGO").getClass().getSimpleName() : "null");
+
             JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, connection);
-            return exportReportToFormat(jasperPrint, format);
+
+            log.info("📊 JasperPrint pages: {}", jasperPrint.getPages().size());
+            log.info("✅ Report generated successfully");
+
+            byte[] result = exportReportToFormat(jasperPrint, format);
+            return result;
+
         } catch (Exception e) {
-            log.error("Error generating space list report", e);
+            log.error("❌ Error generating space list report", e);
             throw new JRException("Failed to generate space list report: " + e.getMessage(), e);
         } finally {
             closeConnection(connection);
+            closeStream(logoStream);
+        }
+    }
+
+    // ✅ FIXED: Improved logo loading with multiple methods
+    private InputStream loadLogoWithMultipleMethods() {
+        String[] possiblePaths = {
+                "classpath:image/SGH-logo.png",
+                "classpath:/image/SGH-logo.png",
+                "image/SGH-logo.png",
+                "/image/SGH-logo.png",
+                "src/main/resources/image/SGH-logo.png",
+                "static/image/SGH-logo.png",
+                "classpath:static/image/SGH-logo.png"
+        };
+
+        for (String path : possiblePaths) {
+            try {
+                log.info("🔍 Trying logo path: {}", path);
+                InputStream stream = null;
+
+                if (path.startsWith("classpath:")) {
+                    String resourcePath = path.substring("classpath:".length());
+                    stream = getClass().getClassLoader().getResourceAsStream(resourcePath);
+                    if (stream == null) {
+                        stream = getClass().getResourceAsStream(resourcePath);
+                    }
+                    if (stream == null && resourceLoader != null) {
+                        Resource resource = resourceLoader.getResource(path);
+                        if (resource.exists()) {
+                            stream = resource.getInputStream();
+                        }
+                    }
+                } else if (path.startsWith("src/")) {
+                    // Direct file system access
+                    File logoFile = new File(path);
+                    if (logoFile.exists() && logoFile.isFile() && logoFile.length() > 0) {
+                        stream = new FileInputStream(logoFile);
+                    }
+                } else {
+                    // Try as classpath resource
+                    stream = getClass().getClassLoader().getResourceAsStream(path);
+                    if (stream == null) {
+                        stream = getClass().getResourceAsStream(path);
+                    }
+                    if (stream == null && !path.startsWith("/")) {
+                        stream = getClass().getClassLoader().getResourceAsStream("/" + path);
+                    }
+                }
+
+                if (stream != null) {
+                    // Test if stream has content
+                    if (stream.available() > 0) {
+                        log.info("✅ Logo found and loaded from: {}", path);
+                        // Return a fresh stream
+                        return getFreshLogoStream(path);
+                    } else {
+                        stream.close();
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("❌ Failed to load logo from: {}", path);
+            }
+        }
+
+        log.error("❌ Logo not found in any location");
+        return null;
+    }
+
+    // ✅ Get fresh logo stream without consuming it
+    private InputStream getFreshLogoStream(String path) {
+        try {
+            if (path.startsWith("classpath:")) {
+                String resourcePath = path.substring("classpath:".length());
+                return getClass().getClassLoader().getResourceAsStream(resourcePath);
+            } else if (path.startsWith("src/")) {
+                return new FileInputStream(new File(path));
+            } else {
+                return getClass().getClassLoader().getResourceAsStream(path);
+            }
+        } catch (Exception e) {
+            log.error("Error getting fresh logo stream", e);
+            return null;
+        }
+    }
+
+    // ✅ Create a placeholder logo if real logo is not found
+    private InputStream createPlaceholderLogo() {
+        try {
+            // Create a simple placeholder image
+            BufferedImage placeholder = new BufferedImage(200, 200, BufferedImage.TYPE_INT_RGB);
+            java.awt.Graphics2D g2d = placeholder.createGraphics();
+
+            // Set background
+            g2d.setColor(new java.awt.Color(44, 62, 80)); // Dark blue
+            g2d.fillRect(0, 0, 200, 200);
+
+            // Draw border
+            g2d.setColor(java.awt.Color.WHITE);
+            g2d.drawRect(0, 0, 199, 199);
+
+            // Draw text
+            g2d.setColor(java.awt.Color.WHITE);
+            g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 16));
+            g2d.drawString("SGH", 70, 100);
+            g2d.setFont(new java.awt.Font("Arial", java.awt.Font.PLAIN, 12));
+            g2d.drawString("LOGO", 75, 120);
+
+            g2d.dispose();
+
+            // Convert to InputStream
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(placeholder, "PNG", baos);
+            return new ByteArrayInputStream(baos.toByteArray());
+
+        } catch (Exception e) {
+            log.error("Error creating placeholder logo", e);
+            return null;
+        }
+    }
+
+    // ✅ DEBUG METHOD TO CHECK RESOURCES
+    private void debugResources() {
+        try {
+            log.info("=== RESOURCE DEBUG INFORMATION ===");
+
+            // Check classpath root
+            java.net.URL root = getClass().getClassLoader().getResource("");
+            log.info("🔍 Classpath root: {}", root);
+
+            // Check image directory
+            java.net.URL imageDir = getClass().getClassLoader().getResource("image/");
+            log.info("🔍 Image directory URL: {}", imageDir);
+
+            if (imageDir != null) {
+                File dir = new File(imageDir.getFile());
+                if (dir.exists() && dir.isDirectory()) {
+                    String[] files = dir.list();
+                    log.info("📁 Files in image directory: {}", Arrays.toString(files));
+                }
+            }
+
+            // Try specific paths
+            String[] testPaths = {
+                    "image/SGH-logo.png",
+                    "/image/SGH-logo.png",
+                    "static/image/SGH-logo.png",
+                    "/static/image/SGH-logo.png"
+            };
+
+            for (String path : testPaths) {
+                InputStream testStream = getClass().getClassLoader().getResourceAsStream(path);
+                if (testStream != null) {
+                    log.info("✅ Found resource: {}", path);
+                    testStream.close();
+                } else {
+                    log.info("❌ Not found: {}", path);
+                }
+            }
+
+            // Check file system
+            File fileSystemLogo = new File("src/main/resources/image/SGH-logo.png");
+            log.info("🔍 File system logo exists: {}", fileSystemLogo.exists());
+            if (fileSystemLogo.exists()) {
+                log.info("🔍 File system logo size: {} bytes", fileSystemLogo.length());
+            }
+
+            log.info("=== END RESOURCE DEBUG ===");
+        } catch (Exception e) {
+            log.error("Error during resource debugging", e);
         }
     }
 
     @Override
     public byte[] generateSpaceAvailabilityReport(Map<String, Object> parameters, String format) throws JRException {
         Connection connection = null;
+        InputStream logoStream = null;
         try {
             connection = dataSource.getConnection();
             JasperReport jasperReport = reportCompiler.getCompiledReport("space_availability_report");
+
+            // Load logo for this report too
+            logoStream = loadLogoWithMultipleMethods();
+            if (logoStream != null) {
+                parameters.put("COMPANY_LOGO", logoStream);
+            }
+
             addPremiumParameters(parameters);
             parameters.put("REPORT_TITLE", "SPACE AVAILABILITY REPORT");
             JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, connection);
@@ -1497,15 +1738,24 @@ public class SpaceReportServiceImpl implements SpaceReportService {
             throw new JRException("Failed to generate space availability report: " + e.getMessage(), e);
         } finally {
             closeConnection(connection);
+            closeStream(logoStream);
         }
     }
 
     @Override
     public byte[] generateSpaceByFloorReport(Integer floorId, Map<String, Object> parameters, String format) throws JRException {
         Connection connection = null;
+        InputStream logoStream = null;
         try {
             connection = dataSource.getConnection();
             JasperReport jasperReport = reportCompiler.getCompiledReport("space_floor_report");
+
+            // Load logo for this report too
+            logoStream = loadLogoWithMultipleMethods();
+            if (logoStream != null) {
+                parameters.put("COMPANY_LOGO", logoStream);
+            }
+
             addPremiumParameters(parameters);
             parameters.put("REPORT_TITLE", "FLOOR SPACE DISTRIBUTION");
             parameters.put("FLOOR_ID", floorId);
@@ -1516,12 +1766,10 @@ public class SpaceReportServiceImpl implements SpaceReportService {
             throw new JRException("Failed to generate space by floor report: " + e.getMessage(), e);
         } finally {
             closeConnection(connection);
+            closeStream(logoStream);
         }
     }
 
-    /**
-     * Export JasperPrint to various formats
-     */
     private byte[] exportReportToFormat(JasperPrint jasperPrint, String format) throws JRException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
@@ -1532,16 +1780,7 @@ public class SpaceReportServiceImpl implements SpaceReportService {
 
             case "excel":
             case "xls":
-                JRXlsExporter xlsExporter = new JRXlsExporter();
-                xlsExporter.setExporterInput(new SimpleExporterInput(jasperPrint));
-                xlsExporter.setExporterOutput(new SimpleOutputStreamExporterOutput(outputStream));
-
-                SimpleXlsReportConfiguration xlsConfig = new SimpleXlsReportConfiguration();
-                xlsConfig.setOnePagePerSheet(false);
-                xlsConfig.setRemoveEmptySpaceBetweenRows(true);
-                xlsConfig.setDetectCellType(true);
-                xlsConfig.setWhitePageBackground(false);
-                xlsExporter.setConfiguration(xlsConfig);
+                JRXlsExporter xlsExporter = getJrXlsExporter(jasperPrint, outputStream);
 
                 xlsExporter.exportReport();
                 break;
@@ -1578,5 +1817,19 @@ public class SpaceReportServiceImpl implements SpaceReportService {
         }
 
         return outputStream.toByteArray();
+    }
+
+    private static JRXlsExporter getJrXlsExporter(JasperPrint jasperPrint, ByteArrayOutputStream outputStream) {
+        JRXlsExporter xlsExporter = new JRXlsExporter();
+        xlsExporter.setExporterInput(new SimpleExporterInput(jasperPrint));
+        xlsExporter.setExporterOutput(new SimpleOutputStreamExporterOutput(outputStream));
+
+        SimpleXlsReportConfiguration xlsConfig = new SimpleXlsReportConfiguration();
+        xlsConfig.setOnePagePerSheet(false);
+        xlsConfig.setRemoveEmptySpaceBetweenRows(true);
+        xlsConfig.setDetectCellType(true);
+        xlsConfig.setWhitePageBackground(false);
+        xlsExporter.setConfiguration(xlsConfig);
+        return xlsExporter;
     }
 }

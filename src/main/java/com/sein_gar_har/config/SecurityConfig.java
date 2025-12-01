@@ -29,6 +29,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http.sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
+                        // ✅ Public endpoints
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/notifications/**").permitAll()
                         .requestMatchers("/topic/notifications/**").permitAll()
@@ -38,20 +39,32 @@ public class SecurityConfig {
                         .requestMatchers("/api/chats/**").permitAll()
                         .requestMatchers("/api/sms/**").permitAll()
                         .requestMatchers("/api/push/user/**").permitAll()
-                        .requestMatchers("/api/push/vapidPublicKey").permitAll() // public
-                        .requestMatchers("/api/push/subscribe").permitAll()      // public
-                        .requestMatchers("/api/push/sendAll").authenticated()    // JWT required
-                        .requestMatchers("/api/push/**").authenticated() // other push endpoints require auth
+                        .requestMatchers("/api/push/vapidPublicKey").permitAll()
+                        .requestMatchers("/api/push/subscribe").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/api/branches/**").permitAll()
                         .requestMatchers("/api/spaces/**").permitAll()
+
+                        // ✅ Explicitly allow ALL report endpoints
                         .requestMatchers("/api/reports/**").permitAll()
+                        .requestMatchers("/api/reports/branches/**").permitAll()
+                        .requestMatchers("/api/reports/branchesIncome/**").permitAll()
+                        .requestMatchers("/api/reports/branches/health").permitAll()
+                        .requestMatchers("/api/reports/branches/list").permitAll()
+                        .requestMatchers("/api/reports/branches/analytics").permitAll()
+                        .requestMatchers("/api/reports/branches/*/detail").permitAll()
+                        .requestMatchers("/api/reports/branches/*/users").permitAll()
+
                         .requestMatchers("/api/space-types/**").permitAll()
                         .requestMatchers("/api/floors/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/auditlogs/**").permitAll()
                         .requestMatchers("/api/utilities/**").permitAll()
                         .requestMatchers("/api/payments/**").permitAll()
+
+                        // ✅ Push endpoints that require auth
+                        .requestMatchers("/api/push/sendAll").authenticated()
+                        .requestMatchers("/api/push/**").authenticated()
 
                         .anyRequest().authenticated()
                 )
@@ -70,7 +83,6 @@ public class SecurityConfig {
                 .build();
     }
 
-
     // Expose AuthenticationManager bean (required for AuthController)
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
@@ -81,5 +93,4 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-
 }

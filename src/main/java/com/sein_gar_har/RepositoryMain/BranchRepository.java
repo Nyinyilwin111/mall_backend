@@ -12,15 +12,15 @@ import java.util.Set;
 
 @Repository
 public interface BranchRepository extends JpaRepository<Branch, Long> {
-
-    // Search by branch name (case-insensitive)
-    List<Branch> findByNameContainingIgnoreCase(String name);
-
-    // Search by address (case-insensitive)
-    List<Branch> findByAddressContainingIgnoreCase(String address);
-
-    // Search by phone number
-    List<Branch> findByPhoneNumberContaining(String phoneNumber);
+//
+//    // Search by branch name (case-insensitive)
+//    List<Branch> findByNameContainingIgnoreCase(String name);
+//
+//    // Search by address (case-insensitive)
+//    List<Branch> findByAddressContainingIgnoreCase(String address);
+//
+//    // Search by phone number
+//    List<Branch> findByPhoneNumberContaining(String phoneNumber);
 
     // Combined search by name and address
     @Query("SELECT b FROM Branch b WHERE " +
@@ -44,4 +44,10 @@ public interface BranchRepository extends JpaRepository<Branch, Long> {
 
     @Query("SELECT b FROM Branch b WHERE b.id IN :branchIds")
     List<Branch> findByIds(@Param("branchIds") Set<Long> branchIds);
+
+    @Query("SELECT b FROM Branch b LEFT JOIN FETCH b.users")
+    List<Branch> findAllWithUsers();
+
+    @Query("SELECT b FROM Branch b LEFT JOIN FETCH b.users WHERE b.id = :id")
+    Optional<Branch> findByIdWithUsers(Long id);
 }

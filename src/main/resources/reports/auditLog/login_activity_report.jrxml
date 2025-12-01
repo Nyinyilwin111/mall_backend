@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+              http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="login_activity_report" pageWidth="595" pageHeight="842"
+              columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20">
+
+    <parameter name="REPORT_TITLE" class="java.lang.String"/>
+    <parameter name="DATE_RANGE" class="java.lang.String"/>
+    <parameter name="TOTAL_LOGINS" class="java.lang.Integer"/>
+    <parameter name="SUCCESSFUL_LOGINS" class="java.lang.Long"/>
+    <parameter name="FAILED_LOGINS" class="java.lang.Long"/>
+
+    <queryString>
+        <![CDATA[]]>
+    </queryString>
+
+    <field name="logId" class="java.util.UUID"/>
+    <field name="action" class="java.lang.String"/>
+    <field name="tableAffected" class="java.lang.String"/>
+    <field name="recordId" class="java.lang.String"/>
+    <field name="oldValues" class="java.lang.String"/>
+    <field name="newValues" class="java.lang.String"/>
+    <field name="ipAddress" class="java.lang.String"/>
+    <field name="userAgent" class="java.lang.String"/>
+    <field name="timestamp" class="java.time.LocalDateTime"/>
+    <field name="performedBy" class="java.lang.String"/>
+    <field name="userFriendlyMessage" class="java.lang.String"/>
+
+    <variable name="LoginStatus" class="java.lang.String">
+        <variableExpression><![CDATA[
+            $F{action}.equals("LOGIN") ?
+            ($F{newValues} != null && $F{newValues}.contains("\"status\":\"SUCCESS\"") ? "SUCCESS" :
+             ($F{newValues} != null && $F{newValues}.contains("\"status\":\"FAILED\"") ? "FAILED" : "UNKNOWN"))
+            : "N/A"
+        ]]></variableExpression>
+    </variable>
+
+    <title>
+        <band height="150">
+            <staticText>
+                <reportElement x="0" y="0" width="555" height="30"/>
+                <textElement textAlignment="Center">
+                    <font size="18" isBold="true"/>
+                </textElement>
+                <text><![CDATA[User Login Activity Report]]></text>
+            </staticText>
+
+            <textField>
+                <reportElement x="0" y="40" width="555" height="20"/>
+                <textElement textAlignment="Center">
+                    <font size="14" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="0" y="70" width="555" height="20"/>
+                <textElement textAlignment="Center">
+                    <font size="12"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Period: " + $P{DATE_RANGE}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="0" y="100" width="185" height="20"/>
+                <textElement>
+                    <font size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Total Login Attempts: " + $P{TOTAL_LOGINS}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="185" y="100" width="185" height="20"/>
+                <textElement>
+                    <font size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Successful: " + $P{SUCCESSFUL_LOGINS}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="370" y="100" width="185" height="20"/>
+                <textElement>
+                    <font size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Failed: " + $P{FAILED_LOGINS}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="40">
+            <staticText>
+                <reportElement x="0" y="0" width="120" height="30" style="Table_TH"/>
+                <textElement textAlignment="Center">
+                    <font size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Timestamp]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="120" y="0" width="100" height="30" style="Table_TH"/>
+                <textElement textAlignment="Center">
+                    <font size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[User]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="220" y="0" width="100" height="30" style="Table_TH"/>
+                <textElement textAlignment="Center">
+                    <font size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[IP Address]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="320" y="0" width="80" height="30" style="Table_TH"/>
+                <textElement textAlignment="Center">
+                    <font size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Status]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="400" y="0" width="155" height="30" style="Table_TH"/>
+                <textElement textAlignment="Center">
+                    <font size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[User Agent]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="35">
+            <textField>
+                <reportElement x="0" y="0" width="120" height="30" style="Table_TD"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{timestamp}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="120" y="0" width="100" height="30" style="Table_TD"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{performedBy}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="220" y="0" width="100" height="30" style="Table_TD"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{ipAddress}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="320" y="0" width="80" height="30" style="Table_TD"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font size="8"/>
+                </textFieldExpression>
+                <textFieldExpression><![CDATA[$V{LoginStatus}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="400" y="0" width="155" height="30" style="Table_TD"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle">
+                    <font size="7"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{userAgent}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="30">
+            <textField>
+                <reportElement x="400" y="0" width="155" height="20"/>
+                <textElement textAlignment="Right">
+                    <font size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " of " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+
+            <textField pattern="EEEEE dd MMMMM yyyy HH:mm">
+                <reportElement x="0" y="0" width="200" height="20"/>
+                <textElement textAlignment="Left">
+                    <font size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+</jasperReport>

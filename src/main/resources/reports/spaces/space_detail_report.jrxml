@@ -56,12 +56,12 @@
         <initialValueExpression><![CDATA[0]]></initialValueExpression>
     </variable>
 
-    <background>
-        <band height="802">
-            <rectangle>
-                <reportElement x="0" y="0" width="555" height="802" backcolor="#F8F9FA"/>
-            </rectangle>
-        </band>
+    <background >
+<!--        <band height="802">-->
+<!--            <rectangle>-->
+<!--                <reportElement x="0" y="0" width="555" height="802" backcolor="#F8F9FA"/>-->
+<!--            </rectangle>-->
+<!--        </band>-->
     </background>
 
     <title>
@@ -70,15 +70,20 @@
                 <reportElement x="0" y="0" width="555" height="80" backcolor="#2C3E50"/>
             </rectangle>
 
+            <image onErrorType="Blank">
+                <reportElement x="20" y="15" width="40" height="40"/>
+                <imageExpression><![CDATA["classpath:image/SGH-logo.png"]]></imageExpression>
+            </image>
+
             <textField>
                 <reportElement x="70" y="15" width="250" height="20" forecolor="#FFFFFF"/>
-                <textElement><font size="14" isBold="true"/></textElement>
+                <textElement><font size="16" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$P{COMPANY_NAME}]]></textFieldExpression>
             </textField>
 
             <textField>
                 <reportElement x="70" y="40" width="250" height="25" forecolor="#ECF0F1"/>
-                <textElement><font size="18" isBold="true"/></textElement>
+                <textElement><font size="11" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression>
             </textField>
 
@@ -87,8 +92,8 @@
             </rectangle>
 
             <textField>
-                <reportElement x="400" y="15" width="135" height="25" forecolor="#FFFFFF"/>
-                <textElement textAlignment="Center"><font size="11" isBold="true"/></textElement>
+                <reportElement x="400" y="15" width="135" height="25" forecolor="#FFFFFF" />
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font size="11" isBold="true" /></textElement>
                 <textFieldExpression><![CDATA["ID: " + $F{spaceCode}]]></textFieldExpression>
             </textField>
 
@@ -107,14 +112,14 @@
     </title>
 
     <detail>
-        <band height="650">
+        <band height="0">
             <!-- Space Images Section - FIXED WITH ACTUAL IMAGES -->
             <rectangle radius="8">
                 <reportElement x="0" y="0" width="555" height="150" backcolor="#FFFFFF"/>
             </rectangle>
 
             <staticText>
-                <reportElement x="10" y="10" width="535" height="20" forecolor="#2C3E50"/>
+                <reportElement x="10" y="10" width="535" height="20" />
                 <textElement><font size="12" isBold="true"/></textElement>
                 <text><![CDATA[Space Images]]></text>
             </staticText>
@@ -147,7 +152,7 @@
 
             <!-- No Images Message -->
             <textField>
-                <reportElement x="0" y="60" width="555" height="20" forecolor="#95A5A6">
+                <reportElement x="0" y="60" width="555" height="20" forecolor="#CF2323">
                     <printWhenExpression><![CDATA[$F{imageUrls} == null || $F{imageUrls}.isEmpty()]]></printWhenExpression>
                 </reportElement>
                 <textElement textAlignment="Center"><font size="10" isItalic="true"/></textElement>
@@ -213,13 +218,13 @@
                 </reportElement>
             </rectangle>
             <rectangle radius="10">
-                <reportElement x="370" y="230" width="70" height="30" backcolor="#E74C3C">
+                <reportElement x="370" y="230" width="70" height="20" backcolor="#E74C3C">
                     <printWhenExpression><![CDATA["OCCUPIED".equals($F{status})]]></printWhenExpression>
                 </reportElement>
             </rectangle>
             <textField>
-                <reportElement x="370" y="230" width="70" height="30" forecolor="#FFFFFF"/>
-                <textElement textAlignment="Center"><font size="9" isBold="true"/></textElement>
+                <reportElement x="370" y="230" width="70" height="20" forecolor="#FFFFFF"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$F{status}]]></textFieldExpression>
             </textField>
 
