@@ -72,4 +72,24 @@ public class AuditLog {
         }
         return "UNKNOWN";
     }
+
+    // New helper methods for report templates
+    public String getExtractedEmail() {
+        if (newValues != null && newValues.contains("\"email\":")) {
+            return newValues.replaceAll(".*\"email\":\"([^\"]+)\".*", "$1");
+        }
+        return "Unknown User";
+    }
+
+    public String getLoginStatus() {
+        return getStatusFromLogin();
+    }
+
+    public String getShortUserAgent() {
+        if (userAgent == null) return "";
+        if (userAgent.length() > 50) {
+            return userAgent.substring(0, 47) + "...";
+        }
+        return userAgent;
+    }
 }

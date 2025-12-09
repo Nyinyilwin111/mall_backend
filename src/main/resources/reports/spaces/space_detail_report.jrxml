@@ -77,7 +77,7 @@
 
             <textField>
                 <reportElement x="70" y="15" width="250" height="20" forecolor="#FFFFFF"/>
-                <textElement><font size="16" isBold="true"/></textElement>
+                <textElement><font size="13" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$P{COMPANY_NAME}]]></textFieldExpression>
             </textField>
 
@@ -112,8 +112,8 @@
     </title>
 
     <detail>
-        <band height="0">
-            <!-- Space Images Section - FIXED WITH ACTUAL IMAGES -->
+        <band height="650">
+            <!-- Space Images Section -->
             <rectangle radius="8">
                 <reportElement x="0" y="0" width="555" height="150" backcolor="#FFFFFF"/>
             </rectangle>
@@ -125,29 +125,30 @@
             </staticText>
 
             <!-- Image 1 -->
-            <!-- Alternative Image Section - Using URL approach -->
             <image scaleImage="RetainShape" onErrorType="Blank">
                 <reportElement x="15" y="35" width="170" height="105">
                     <printWhenExpression><![CDATA[$F{imageUrls} != null && $F{imageUrls}.size() >= 1]]></printWhenExpression>
                 </reportElement>
                 <imageExpression><![CDATA[$F{imageUrls} != null && $F{imageUrls}.size() >= 1 ?
-        ((String)$F{imageUrls}.get(0)) : null]]></imageExpression>
+    ((String)$F{imageUrls}.get(0)) : null]]></imageExpression>
             </image>
 
+            <!-- Image 2 -->
             <image scaleImage="RetainShape" onErrorType="Blank">
                 <reportElement x="195" y="35" width="170" height="105">
                     <printWhenExpression><![CDATA[$F{imageUrls} != null && $F{imageUrls}.size() >= 2]]></printWhenExpression>
                 </reportElement>
                 <imageExpression><![CDATA[$F{imageUrls} != null && $F{imageUrls}.size() >= 2 ?
-        ((String)$F{imageUrls}.get(1)) : null]]></imageExpression>
+    ((String)$F{imageUrls}.get(1)) : null]]></imageExpression>
             </image>
 
+            <!-- Image 3 -->
             <image scaleImage="RetainShape" onErrorType="Blank">
                 <reportElement x="375" y="35" width="170" height="105">
                     <printWhenExpression><![CDATA[$F{imageUrls} != null && $F{imageUrls}.size() >= 3]]></printWhenExpression>
                 </reportElement>
                 <imageExpression><![CDATA[$F{imageUrls} != null && $F{imageUrls}.size() >= 3 ?
-        ((String)$F{imageUrls}.get(2)) : null]]></imageExpression>
+    ((String)$F{imageUrls}.get(2)) : null]]></imageExpression>
             </image>
 
             <!-- No Images Message -->
@@ -342,150 +343,116 @@
     </pageFooter>
 
     <!-- Contact Page as Summary (Page 2) -->
+    <!-- Contact Page as Summary (Page 2) -->
     <summary>
-        <band height="600">
-            <!-- Contact Information Header -->
-            <rectangle radius="10">
-                <reportElement x="0" y="0" width="555" height="80" backcolor="#2C3E50"/>
-            </rectangle>
-
-            <textField>
-                <reportElement x="70" y="15" width="250" height="20" forecolor="#FFFFFF"/>
-                <textElement><font size="14" isBold="true"/></textElement>
-                <textFieldExpression><![CDATA[$P{COMPANY_NAME}]]></textFieldExpression>
-            </textField>
-
-            <textField>
-                <reportElement x="70" y="40" width="250" height="25" forecolor="#ECF0F1"/>
-                <textElement><font size="18" isBold="true"/></textElement>
-                <textFieldExpression><![CDATA[$P{REPORT_TITLE} + " - Contact Information"]]></textFieldExpression>
-            </textField>
-
-            <rectangle radius="8">
-                <reportElement x="400" y="15" width="135" height="25" backcolor="#3498DB"/>
-            </rectangle>
-
-            <textField>
-                <reportElement x="400" y="15" width="135" height="25" forecolor="#FFFFFF"/>
-                <textElement textAlignment="Center"><font size="11" isBold="true"/></textElement>
-                <textFieldExpression><![CDATA["ID: " + $F{spaceCode}]]></textFieldExpression>
-            </textField>
-
-            <!-- Page 2 Indicator -->
-            <textField>
-                <reportElement x="0" y="85" width="555" height="15" forecolor="#7F8C8D"/>
-                <textElement textAlignment="Center"><font size="8" isItalic="true"/></textElement>
-                <textFieldExpression><![CDATA["Page 2 of 2 - Contact Information"]]></textFieldExpression>
-            </textField>
-
+        <band height="615">  <!-- Changed from 600 to 615 -->
             <!-- Contact Information Section -->
             <rectangle radius="8">
-                <reportElement x="0" y="110" width="555" height="200" backcolor="#FFFFFF"/>
+                <reportElement x="0" y="0" width="555" height="200" backcolor="#FFFFFF"/>
             </rectangle>
 
             <staticText>
-                <reportElement x="10" y="120" width="535" height="30" forecolor="#2C3E50"/>
+                <reportElement x="10" y="9" width="535" height="30" forecolor="#2C3E50"/>
                 <textElement><font size="16" isBold="true"/></textElement>
                 <text><![CDATA[Contact Information]]></text>
             </staticText>
-
             <!-- Contact Person -->
             <staticText>
-                <reportElement x="30" y="160" width="120" height="25" forecolor="#7F8C8D"/>
+                <reportElement x="10" y="74" width="120" height="25" forecolor="#7F8C8D"/>
                 <textElement><font size="12" isBold="true"/></textElement>
                 <text><![CDATA[Contact Person:]]></text>
             </staticText>
             <textField>
-                <reportElement x="160" y="160" width="350" height="25" forecolor="#2C3E50"/>
+                <reportElement x="143" y="74" width="350" height="25" forecolor="#2C3E50"/>
                 <textElement><font size="12" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$F{contactPerson} != null ? $F{contactPerson} : $P{CONTACT_PERSON}]]></textFieldExpression>
             </textField>
 
             <!-- Phone -->
             <staticText>
-                <reportElement x="30" y="190" width="120" height="25" forecolor="#7F8C8D"/>
+                <reportElement x="10" y="108" width="120" height="25" forecolor="#7F8C8D"/>
                 <textElement><font size="12" isBold="true"/></textElement>
                 <text><![CDATA[Phone Number:]]></text>
             </staticText>
             <textField>
-                <reportElement x="160" y="190" width="350" height="25" forecolor="#2C3E50"/>
+                <reportElement x="140" y="108" width="350" height="25" forecolor="#2C3E50"/>
                 <textElement><font size="12"/></textElement>
                 <textFieldExpression><![CDATA[$F{contactPhone} != null ? $F{contactPhone} : $P{CONTACT_PHONE}]]></textFieldExpression>
             </textField>
 
             <!-- Email -->
             <staticText>
-                <reportElement x="30" y="220" width="120" height="25" forecolor="#7F8C8D"/>
+                <reportElement x="10" y="138" width="120" height="25" forecolor="#7F8C8D"/>
                 <textElement><font size="12" isBold="true"/></textElement>
                 <text><![CDATA[Email Address:]]></text>
             </staticText>
             <textField>
-                <reportElement x="160" y="220" width="350" height="25" forecolor="#3498DB"/>
+                <reportElement x="140" y="138" width="350" height="25" forecolor="#3498DB"/>
                 <textElement><font size="12"/></textElement>
                 <textFieldExpression><![CDATA[$F{contactEmail} != null ? $F{contactEmail} : $P{CONTACT_EMAIL}]]></textFieldExpression>
             </textField>
 
             <!-- Additional Information -->
             <rectangle radius="8">
-                <reportElement x="0" y="330" width="555" height="200" backcolor="#2C3E50"/>
+                <reportElement x="0" y="218" width="555" height="200" backcolor="#2C3E50"/>
             </rectangle>
 
             <staticText>
-                <reportElement x="10" y="340" width="535" height="30" forecolor="#FFFFFF"/>
+                <reportElement x="10" y="228" width="535" height="30" forecolor="#FFFFFF"/>
                 <textElement><font size="14" isBold="true"/></textElement>
                 <text><![CDATA[Additional Information]]></text>
             </staticText>
 
             <!-- Special Features -->
             <staticText>
-                <reportElement x="30" y="380" width="120" height="20" forecolor="#BDC3C7"/>
+                <reportElement x="30" y="268" width="120" height="20" forecolor="#BDC3C7"/>
                 <textElement><font size="10" isBold="true"/></textElement>
                 <text><![CDATA[Special Features:]]></text>
             </staticText>
             <textField>
-                <reportElement x="160" y="380" width="350" height="60" forecolor="#ECF0F1"/>
+                <reportElement x="160" y="268" width="350" height="60" forecolor="#ECF0F1"/>
                 <textElement><font size="10"/></textElement>
                 <textFieldExpression><![CDATA[$F{specialFeatures} != null ? $F{specialFeatures} : "No special features listed"]]></textFieldExpression>
             </textField>
 
             <!-- Company Info -->
             <staticText>
-                <reportElement x="30" y="450" width="500" height="15" forecolor="#BDC3C7"/>
+                <reportElement x="30" y="338" width="500" height="15" forecolor="#BDC3C7"/>
                 <textElement textAlignment="Center"><font size="9" isItalic="true"/></textElement>
                 <text><![CDATA["Available 24/7 for inquiries"]]></text>
             </staticText>
 
             <staticText>
-                <reportElement x="30" y="470" width="500" height="15" forecolor="#BDC3C7"/>
+                <reportElement x="30" y="358" width="500" height="15" forecolor="#BDC3C7"/>
                 <textElement textAlignment="Center"><font size="9" isItalic="true"/></textElement>
                 <text><![CDATA["Visit: www.seingarhar.com"]]></text>
             </staticText>
 
             <staticText>
-                <reportElement x="30" y="490" width="500" height="15" forecolor="#BDC3C7"/>
+                <reportElement x="30" y="378" width="500" height="15" forecolor="#BDC3C7"/>
                 <textElement textAlignment="Center"><font size="9" isItalic="true"/></textElement>
                 <text><![CDATA["Professional property management"]]></text>
             </staticText>
 
             <!-- Footer for Page 2 -->
             <line>
-                <reportElement x="0" y="540" width="555" height="1"/>
+                <reportElement x="0" y="579" width="555" height="1"/>
             </line>
 
             <textField evaluationTime="Now">
-                <reportElement x="0" y="545" width="275" height="15" forecolor="#7F8C8D"/>
+                <reportElement x="0" y="584" width="275" height="15" forecolor="#7F8C8D"/>
                 <textElement textAlignment="Left"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA["Generated on " + new java.util.Date()]]></textFieldExpression>
             </textField>
 
             <textField evaluationTime="Report">
-                <reportElement x="280" y="545" width="275" height="15" forecolor="#7F8C8D"/>
+                <reportElement x="280" y="584" width="275" height="15" forecolor="#7F8C8D"/>
                 <textElement textAlignment="Right"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
             </textField>
 
             <textField>
-                <reportElement x="0" y="562" width="555" height="12" forecolor="#95A5A6"/>
+                <reportElement x="0" y="601" width="555" height="12" forecolor="#95A5A6"/>
                 <textElement textAlignment="Center"><font size="7" isItalic="true"/></textElement>
                 <textFieldExpression><![CDATA["Confidential - For Internal Use Only"]]></textFieldExpression>
             </textField>

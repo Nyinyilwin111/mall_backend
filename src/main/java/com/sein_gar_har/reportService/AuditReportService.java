@@ -1,142 +1,288 @@
-// AuditReportService.java
 package com.sein_gar_har.reportService;
 
-import com.sein_gar_har.RepositoryAudit.AuditLogRepository;
-import com.sein_gar_har.auditEntity.AuditLog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.sf.jasperreports.engine.*;
-import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
+import net.sf.jasperreports.engine.export.JRPdfExporter;
+import net.sf.jasperreports.engine.export.JRXlsExporter;
+import net.sf.jasperreports.export.*;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import javax.sql.DataSource;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AuditReportService {
 
-    private final AuditLogRepository auditLogRepository;
+    // Use the audit data source for JasperReports
+    @Qualifier("auditDataSource")
+    private final DataSource auditDataSource;
 
-    public byte[] generateUserActivityReport(String username, LocalDateTime startDate, LocalDateTime endDate) throws JRException {
+    @Qualifier("auditJdbcTemplate")
+    private final JdbcTemplate auditJdbcTemplate;
+
+    private final Map<String, JasperReport> compiledReports = new ConcurrentHashMap<>();
+
+    private JasperReport getCompiledReport(String templateName) throws JRException, IOException {
+        return compiledReports.computeIfAbsent(templateName, key -> {
+            try {
+                String templatePath = "/reports/auditlog/" + templateName + ".jrxml";
+                InputStream reportStream = new ClassPathResource(templatePath).getInputStream();
+                log.info("Compiling JasperReport template: {}", templatePath);
+                return JasperCompileManager.compileReport(reportStream);
+            } catch (IOException | JRException e) {
+                log.error("Failed to compile report template: {}", templateName, e);
+                throw new RuntimeException("Failed to compile report template: " + templateName, e);
+            }
+        });
+    }
+
+    private byte[] generateReport(String templateName, Map<String, Object> parameters, boolean isExcel) throws JRException {
+        Connection connection = null;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
         try {
-            List<AuditLog> auditLogs = auditLogRepository.findUserActivityReport(username, startDate, endDate);
+            // Use audit database connection
+            connection = auditDataSource.getConnection();
+            log.debug("Connected to audit database for report generation: {}", connection.getMetaData().getURL());
 
-            // Load JasperReport template
-            InputStream reportStream = new ClassPathResource("/jasper/templates/user_activity_report.jrxml").getInputStream();
-            JasperReport jasperReport = JasperCompileManager.compileReport(reportStream);
+            JasperReport jasperReport = getCompiledReport(templateName);
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, connection);
 
-            JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(auditLogs);
+            if (isExcel) {
+                JRXlsExporter exporter = new JRXlsExporter();
+                exporter.setExporterInput(new SimpleExporterInput(jasperPrint));
+                SimpleOutputStreamExporterOutput output = new SimpleOutputStreamExporterOutput(baos);
+                exporter.setExporterOutput(output);
 
-            Map<String, Object> parameters = new HashMap<>();
-            parameters.put("REPORT_TITLE", "User Activity Report - " + username);
-            parameters.put("DATE_RANGE", startDate + " to " + endDate);
-            parameters.put("USERNAME", username);
-            parameters.put("TOTAL_ACTIONS", auditLogs.size());
+                SimpleXlsReportConfiguration configuration = new SimpleXlsReportConfiguration();
+                configuration.setOnePagePerSheet(false);
+                configuration.setRemoveEmptySpaceBetweenRows(true);
+                configuration.setDetectCellType(true);
+                configuration.setWhitePageBackground(false);
 
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
-            return JasperExportManager.exportReportToPdf(jasperPrint);
-        } catch (IOException e) {
-            log.error("Error loading JasperReport template", e);
-            throw new JRException("Failed to load report template", e);
+                exporter.setConfiguration(configuration);
+                exporter.exportReport();
+            } else {
+                JRPdfExporter exporter = new JRPdfExporter();
+                exporter.setExporterInput(new SimpleExporterInput(jasperPrint));
+                SimpleOutputStreamExporterOutput output = new SimpleOutputStreamExporterOutput(baos);
+                exporter.setExporterOutput(output);
+
+                SimplePdfExporterConfiguration configuration = new SimplePdfExporterConfiguration();
+                exporter.setConfiguration(configuration);
+                exporter.exportReport();
+            }
+
+            return baos.toByteArray();
+        } catch (IOException | SQLException e) {
+            log.error("Error generating report from template: {}", templateName, e);
+            throw new JRException("Failed to generate report", e);
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    log.error("Error closing connection", e);
+                }
+            }
+            try {
+                baos.close();
+            } catch (IOException e) {
+                log.error("Error closing output stream", e);
+            }
         }
+    }
+
+    // Update all methods to use auditJdbcTemplate
+    public byte[] generateUserActivityReport(String username, LocalDateTime startDate, LocalDateTime endDate) throws JRException {
+        // Use auditJdbcTemplate
+        Integer totalActions = auditJdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM auditlog WHERE performedBy = ? AND timestamp BETWEEN ? AND ?",
+                Integer.class,
+                username,
+                java.sql.Timestamp.valueOf(startDate),
+                java.sql.Timestamp.valueOf(endDate)
+        );
+
+        log.debug("Total actions for user {}: {}", username, totalActions);
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("REPORT_TITLE", "User Activity Report - " + username);
+        parameters.put("START_DATE", java.sql.Timestamp.valueOf(startDate));
+        parameters.put("END_DATE", java.sql.Timestamp.valueOf(endDate));
+        parameters.put("USERNAME", username);
+        parameters.put("TOTAL_ACTIONS", totalActions != null ? totalActions : 0);
+        parameters.put("GENERATED_ON", LocalDateTime.now().format(formatter));
+
+        return generateReport("user_activity_report", parameters, false);
+    }
+
+    public byte[] generateUserActivityReportExcel(String username, LocalDateTime startDate, LocalDateTime endDate) throws JRException {
+        Integer totalActions = auditJdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM auditlog WHERE performedBy = ? AND timestamp BETWEEN ? AND ?",
+                Integer.class,
+                username,
+                java.sql.Timestamp.valueOf(startDate),
+                java.sql.Timestamp.valueOf(endDate)
+        );
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("REPORT_TITLE", "User Activity Report - " + username);
+        parameters.put("START_DATE", java.sql.Timestamp.valueOf(startDate));
+        parameters.put("END_DATE", java.sql.Timestamp.valueOf(endDate));
+        parameters.put("USERNAME", username);
+        parameters.put("TOTAL_ACTIONS", totalActions != null ? totalActions : 0);
+        parameters.put("GENERATED_ON", LocalDateTime.now().format(formatter));
+
+        return generateReport("user_activity_report", parameters, true);
     }
 
     public byte[] generateLoginActivityReport(LocalDateTime startDate, LocalDateTime endDate) throws JRException {
-        try {
-            List<AuditLog> loginActivities = auditLogRepository.findLoginActivityReport(startDate, endDate);
+        Integer totalLogins = auditJdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM auditlog WHERE action = 'LOGIN' AND timestamp BETWEEN ? AND ?",
+                Integer.class,
+                java.sql.Timestamp.valueOf(startDate),
+                java.sql.Timestamp.valueOf(endDate)
+        );
 
-            // Load JasperReport template
-            InputStream reportStream = new ClassPathResource("/jasper/templates/login_activity_report.jrxml").getInputStream();
-            JasperReport jasperReport = JasperCompileManager.compileReport(reportStream);
+        Integer successfulLogins = auditJdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM auditlog WHERE action = 'LOGIN' AND newValues LIKE '%\"status\":\"SUCCESS\"%' AND timestamp BETWEEN ? AND ?",
+                Integer.class,
+                java.sql.Timestamp.valueOf(startDate),
+                java.sql.Timestamp.valueOf(endDate)
+        );
 
-            JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(loginActivities);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("REPORT_TITLE", "User Login Activity Report");
+        parameters.put("START_DATE", java.sql.Timestamp.valueOf(startDate));
+        parameters.put("END_DATE", java.sql.Timestamp.valueOf(endDate));
+        parameters.put("TOTAL_LOGINS", totalLogins != null ? totalLogins : 0);
+        parameters.put("SUCCESSFUL_LOGINS", successfulLogins != null ? successfulLogins : 0);
+        parameters.put("FAILED_LOGINS", (totalLogins != null ? totalLogins : 0) - (successfulLogins != null ? successfulLogins : 0));
+        parameters.put("GENERATED_ON", LocalDateTime.now().format(formatter));
 
-            Map<String, Object> parameters = new HashMap<>();
-            parameters.put("REPORT_TITLE", "User Login Activity Report");
-            parameters.put("DATE_RANGE", startDate + " to " + endDate);
-            parameters.put("TOTAL_LOGINS", loginActivities.size());
+        return generateReport("login_activity_report", parameters, false);
+    }
 
-            long successfulLogins = loginActivities.stream()
-                    .filter(log -> "SUCCESS".equals(getLoginStatus(log)))
-                    .count();
-            parameters.put("SUCCESSFUL_LOGINS", successfulLogins);
-            parameters.put("FAILED_LOGINS", loginActivities.size() - successfulLogins);
+    public byte[] generateLoginActivityReportExcel(LocalDateTime startDate, LocalDateTime endDate) throws JRException {
+        Integer totalLogins = auditJdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM auditlog WHERE action = 'LOGIN' AND timestamp BETWEEN ? AND ?",
+                Integer.class,
+                java.sql.Timestamp.valueOf(startDate),
+                java.sql.Timestamp.valueOf(endDate)
+        );
 
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
-            return JasperExportManager.exportReportToPdf(jasperPrint);
-        } catch (IOException e) {
-            log.error("Error loading JasperReport template", e);
-            throw new JRException("Failed to load report template", e);
-        }
+        Integer successfulLogins = auditJdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM auditlog WHERE action = 'LOGIN' AND newValues LIKE '%\"status\":\"SUCCESS\"%' AND timestamp BETWEEN ? AND ?",
+                Integer.class,
+                java.sql.Timestamp.valueOf(startDate),
+                java.sql.Timestamp.valueOf(endDate)
+        );
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("REPORT_TITLE", "User Login Activity Report");
+        parameters.put("START_DATE", java.sql.Timestamp.valueOf(startDate));
+        parameters.put("END_DATE", java.sql.Timestamp.valueOf(endDate));
+        parameters.put("TOTAL_LOGINS", totalLogins != null ? totalLogins : 0);
+        parameters.put("SUCCESSFUL_LOGINS", successfulLogins != null ? successfulLogins : 0);
+        parameters.put("FAILED_LOGINS", (totalLogins != null ? totalLogins : 0) - (successfulLogins != null ? successfulLogins : 0));
+        parameters.put("GENERATED_ON", LocalDateTime.now().format(formatter));
+
+        return generateReport("login_activity_report", parameters, true);
     }
 
     public byte[] generateRoleChangeAuditReport(LocalDateTime startDate, LocalDateTime endDate) throws JRException {
-        try {
-            List<AuditLog> roleChanges = auditLogRepository.findRoleChangeAudit(startDate, endDate);
+        Integer totalRoleChanges = auditJdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM auditlog WHERE action = 'UPDATE' AND tableAffected = 'User' AND (newValues LIKE '%roles%' OR userFriendlyMessage LIKE '%role%') AND timestamp BETWEEN ? AND ?",
+                Integer.class,
+                java.sql.Timestamp.valueOf(startDate),
+                java.sql.Timestamp.valueOf(endDate)
+        );
 
-            // Load JasperReport template
-            InputStream reportStream = new ClassPathResource("/jasper/templates/role_change_audit.jrxml").getInputStream();
-            JasperReport jasperReport = JasperCompileManager.compileReport(reportStream);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("REPORT_TITLE", "User Role Change Audit Report");
+        parameters.put("START_DATE", java.sql.Timestamp.valueOf(startDate));
+        parameters.put("END_DATE", java.sql.Timestamp.valueOf(endDate));
+        parameters.put("TOTAL_ROLE_CHANGES", totalRoleChanges != null ? totalRoleChanges : 0);
+        parameters.put("GENERATED_ON", LocalDateTime.now().format(formatter));
 
-            JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(roleChanges);
+        return generateReport("role_change_audit", parameters, false);
+    }
 
-            Map<String, Object> parameters = new HashMap<>();
-            parameters.put("REPORT_TITLE", "User Role Change Audit Report");
-            parameters.put("DATE_RANGE", startDate + " to " + endDate);
-            parameters.put("TOTAL_ROLE_CHANGES", roleChanges.size());
+    public byte[] generateRoleChangeAuditReportExcel(LocalDateTime startDate, LocalDateTime endDate) throws JRException {
+        Integer totalRoleChanges = auditJdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM auditlog WHERE action = 'UPDATE' AND tableAffected = 'User' AND (newValues LIKE '%roles%' OR userFriendlyMessage LIKE '%role%') AND timestamp BETWEEN ? AND ?",
+                Integer.class,
+                java.sql.Timestamp.valueOf(startDate),
+                java.sql.Timestamp.valueOf(endDate)
+        );
 
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
-            return JasperExportManager.exportReportToPdf(jasperPrint);
-        } catch (IOException e) {
-            log.error("Error loading JasperReport template", e);
-            throw new JRException("Failed to load report template", e);
-        }
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("REPORT_TITLE", "User Role Change Audit Report");
+        parameters.put("START_DATE", java.sql.Timestamp.valueOf(startDate));
+        parameters.put("END_DATE", java.sql.Timestamp.valueOf(endDate));
+        parameters.put("TOTAL_ROLE_CHANGES", totalRoleChanges != null ? totalRoleChanges : 0);
+        parameters.put("GENERATED_ON", LocalDateTime.now().format(formatter));
+
+        return generateReport("role_change_audit", parameters, true);
     }
 
     public byte[] generateComprehensiveAuditReport(LocalDateTime startDate, LocalDateTime endDate) throws JRException {
-        try {
-            List<AuditLog> allActivities = auditLogRepository.findByTimestampBetweenOrderByTimestampDesc(startDate, endDate);
+        Integer totalActivities = auditJdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM auditlog WHERE timestamp BETWEEN ? AND ?",
+                Integer.class,
+                java.sql.Timestamp.valueOf(startDate),
+                java.sql.Timestamp.valueOf(endDate)
+        );
 
-            // Load JasperReport template
-            InputStream reportStream = new ClassPathResource("/jasper/templates/comprehensive_audit_report.jrxml").getInputStream();
-            JasperReport jasperReport = JasperCompileManager.compileReport(reportStream);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("REPORT_TITLE", "Comprehensive Audit Report");
+        parameters.put("START_DATE", java.sql.Timestamp.valueOf(startDate));
+        parameters.put("END_DATE", java.sql.Timestamp.valueOf(endDate));
+        parameters.put("TOTAL_ACTIVITIES", totalActivities != null ? totalActivities : 0);
+        parameters.put("GENERATED_ON", LocalDateTime.now().format(formatter));
 
-            JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(allActivities);
-
-            Map<String, Object> parameters = new HashMap<>();
-            parameters.put("REPORT_TITLE", "Comprehensive Audit Report");
-            parameters.put("DATE_RANGE", startDate + " to " + endDate);
-            parameters.put("TOTAL_ACTIVITIES", allActivities.size());
-
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
-            return JasperExportManager.exportReportToPdf(jasperPrint);
-        } catch (IOException e) {
-            log.error("Error loading JasperReport template", e);
-            throw new JRException("Failed to load report template", e);
-        }
+        return generateReport("comprehensive_audit_report", parameters, false);
     }
 
-    // Helper method to extract login status from AuditLog
-    private String getLoginStatus(AuditLog auditLog) {
-        if (!"LOGIN".equalsIgnoreCase(auditLog.getAction())) {
-            return "N/A";
-        }
+    public byte[] generateComprehensiveAuditReportExcel(LocalDateTime startDate, LocalDateTime endDate) throws JRException {
+        Integer totalActivities = auditJdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM auditlog WHERE timestamp BETWEEN ? AND ?",
+                Integer.class,
+                java.sql.Timestamp.valueOf(startDate),
+                java.sql.Timestamp.valueOf(endDate)
+        );
 
-        String newValues = auditLog.getNewValues();
-        if (newValues != null) {
-            if (newValues.contains("\"status\":\"SUCCESS\"")) {
-                return "SUCCESS";
-            } else if (newValues.contains("\"status\":\"FAILED\"")) {
-                return "FAILED";
-            }
-        }
-        return "UNKNOWN";
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        Map<String, Object> parameters = new HashMap<>();
+        parameters.put("REPORT_TITLE", "Comprehensive Audit Report");
+        parameters.put("START_DATE", java.sql.Timestamp.valueOf(startDate));
+        parameters.put("END_DATE", java.sql.Timestamp.valueOf(endDate));
+        parameters.put("TOTAL_ACTIVITIES", totalActivities != null ? totalActivities : 0);
+        parameters.put("GENERATED_ON", LocalDateTime.now().format(formatter));
+
+        return generateReport("comprehensive_audit_report", parameters, true);
     }
 }

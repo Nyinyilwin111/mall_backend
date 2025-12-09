@@ -52,6 +52,9 @@ public class PushMessage {
     @Column(name = "tenant_id")
     private String tenantId;
 
+    @Column(name = "lease_id")
+    private String leaseId;
+
     @Column(name = "space_id")
     private String spaceId;
 

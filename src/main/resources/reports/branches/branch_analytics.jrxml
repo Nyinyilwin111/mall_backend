@@ -4,17 +4,19 @@
               xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
               http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
               name="branch_analytics_report"
-              pageWidth="595"
-              pageHeight="842"
-              columnWidth="555"
+              pageWidth="842"
+              pageHeight="595"
+              columnWidth="802"
               leftMargin="20"
               rightMargin="20"
               topMargin="20"
-              bottomMargin="20">
+              bottomMargin="20"
+              orientation="Landscape">
 
     <property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
 
-    <!-- Parameters -->
+    <import value="java.time.*"/>
+
     <parameter name="REPORT_TITLE" class="java.lang.String" isForPrompting="false">
         <defaultValueExpression><![CDATA["BRANCH ANALYTICS REPORT"]]></defaultValueExpression>
     </parameter>
@@ -29,32 +31,66 @@
         <defaultValueExpression><![CDATA["System Administrator"]]></defaultValueExpression>
     </parameter>
     <parameter name="REPORT_ID" class="java.lang.String" isForPrompting="false">
-        <defaultValueExpression><![CDATA["BRANCH-ANALYTICS-2025"]]></defaultValueExpression>
+        <defaultValueExpression><![CDATA["BRANCH-ANALYTICS-" + new java.text.SimpleDateFormat("yyyyMMdd").format(new java.util.Date())]]></defaultValueExpression>
     </parameter>
-    <parameter name="TOTAL_BRANCHES" class="java.lang.Long"/>
-    <parameter name="TOTAL_USERS" class="java.lang.Long"/>
+    <parameter name="TOTAL_BRANCHES" class="java.lang.Integer"/>
+    <parameter name="TOTAL_USERS" class="java.lang.Integer"/>
+    <parameter name="TOTAL_FLOORS" class="java.lang.Integer"/>
+    <parameter name="TOTAL_SPACES" class="java.lang.Integer"/>
     <parameter name="AVERAGE_USERS_PER_BRANCH" class="java.lang.String"/>
     <parameter name="GENERATED_DATE" class="java.util.Date"/>
     <parameter name="REPORT_PERIOD" class="java.lang.String"/>
 
+    <queryString>
+        <![CDATA[
+        SELECT
+            b.id as branch_id,
+            b.name as branch_name,
+            b.address as branch_address,
+            b.phone_number as branch_phone,
+            b.created_at as created_date,
+            COUNT(DISTINCT u.id) as user_count,
+            COUNT(DISTINCT f.floor_id) as floor_count,
+            COUNT(DISTINCT s.space_id) as space_count
+        FROM branches b
+        LEFT JOIN user_branches ub ON b.id = ub.branch_id
+        LEFT JOIN users u ON ub.user_id = u.id
+        LEFT JOIN floor f ON b.id = f.branch_branch_id
+        LEFT JOIN space s ON f.floor_id = s.Floor_floor_id
+        GROUP BY b.id, b.name, b.address, b.phone_number, b.created_at
+        ORDER BY b.name
+        ]]>
+    </queryString>
+
     <!-- Fields -->
-    <field name="branchName" class="java.lang.String"/>
-    <field name="userCount" class="java.lang.Integer"/>
-    <field name="address" class="java.lang.String"/>
-    <field name="phone" class="java.lang.String"/>
-    <field name="createdDate" class="java.time.LocalDateTime"/>
+    <field name="branch_id" class="java.lang.Long"/>
+    <field name="branch_name" class="java.lang.String"/>
+    <field name="branch_address" class="java.lang.String"/>
+    <field name="branch_phone" class="java.lang.String"/>
+    <field name="created_date" class="java.time.LocalDateTime"/>
+    <field name="user_count" class="java.lang.Long"/>
+    <field name="floor_count" class="java.lang.Long"/>
+    <field name="space_count" class="java.lang.Long"/>
 
-    <!-- Variables -->
-    <variable name="TotalUsers" class="java.lang.Integer" calculation="Sum">
-        <variableExpression><![CDATA[$F{userCount}]]></variableExpression>
+    <!-- Variables - FIXED: Changed from Integer to Long -->
+    <variable name="TotalUsers" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{user_count}]]></variableExpression>
     </variable>
 
-    <variable name="MaxUsers" class="java.lang.Integer" calculation="Highest">
-        <variableExpression><![CDATA[$F{userCount}]]></variableExpression>
+    <variable name="TotalFloors" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{floor_count}]]></variableExpression>
     </variable>
 
-    <variable name="MinUsers" class="java.lang.Integer" calculation="Lowest">
-        <variableExpression><![CDATA[$F{userCount}]]></variableExpression>
+    <variable name="TotalSpaces" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{space_count}]]></variableExpression>
+    </variable>
+
+    <variable name="MaxUsers" class="java.lang.Long" calculation="Highest">
+        <variableExpression><![CDATA[$F{user_count}]]></variableExpression>
+    </variable>
+
+    <variable name="MinUsers" class="java.lang.Long" calculation="Lowest">
+        <variableExpression><![CDATA[$F{user_count}]]></variableExpression>
     </variable>
 
     <!-- Background -->
@@ -67,7 +103,7 @@
         <band height="130" splitType="Stretch">
             <!-- Header Background -->
             <rectangle radius="8">
-                <reportElement x="0" y="0" width="555" height="110" backcolor="#2C3E50"/>
+                <reportElement x="0" y="0" width="802" height="110" backcolor="#2C3E50"/>
                 <graphicElement>
                     <pen lineWidth="0.0" lineColor="#2C3E50"/>
                 </graphicElement>
@@ -75,13 +111,13 @@
 
             <!-- Logo -->
             <image scaleImage="RetainShape" onErrorType="Blank">
-                <reportElement x="20" y="20" width="70" height="70"/>
-                <imageExpression><![CDATA["classpath:image/SGH-logo.png"]]></imageExpression>
+                <reportElement x="20" y="20" width="60" height="60"/>
+                <imageExpression><![CDATA[$P{COMPANY_LOGO}]]></imageExpression>
             </image>
 
             <!-- Company Name -->
             <textField isBlankWhenNull="true">
-                <reportElement x="105" y="25" width="300" height="30" forecolor="#FFFFFF"/>
+                <reportElement x="95" y="25" width="350" height="30" forecolor="#FFFFFF"/>
                 <textElement textAlignment="Left" verticalAlignment="Middle">
                     <font fontName="DejaVu Sans" size="18" isBold="true"/>
                 </textElement>
@@ -90,47 +126,47 @@
 
             <!-- Report Title -->
             <textField isBlankWhenNull="true">
-                <reportElement x="105" y="55" width="300" height="25" forecolor="#ECF0F1"/>
+                <reportElement x="95" y="55" width="350" height="25" forecolor="#ECF0F1"/>
                 <textElement textAlignment="Left" verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="14" isBold="false"/>
+                    <font fontName="DejaVu Sans" size="14"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression>
             </textField>
 
-            <!-- Report Type Badge -->
+            <!-- Landscape Indicator -->
             <textField isBlankWhenNull="true">
-                <reportElement x="105" y="80" width="120" height="20" forecolor="#2C3E50" backcolor="#ECF0F1"/>
+                <reportElement x="95" y="80" width="120" height="20" forecolor="#2C3E50" backcolor="#ECF0F1"/>
                 <textElement textAlignment="Center" verticalAlignment="Middle">
                     <font fontName="DejaVu Sans" size="9" isBold="true"/>
                 </textElement>
-                <textFieldExpression><![CDATA["ANALYTICS"]]></textFieldExpression>
+                <textFieldExpression><![CDATA["LANDSCAPE VIEW"]]></textFieldExpression>
             </textField>
 
             <!-- Date -->
-            <textField pattern="EEEE, MMMM dd, yyyy">
-                <reportElement x="353" y="25" width="190" height="20" forecolor="#ECF0F1"/>
+            <textField pattern="EEE, MMM dd, yyyy">
+                <reportElement x="600" y="25" width="182" height="20" forecolor="#ECF0F1"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$P{REPORT_DATE}]]></textFieldExpression>
             </textField>
 
             <!-- Generated by -->
             <textField isBlankWhenNull="true">
-                <reportElement x="353" y="50" width="190" height="18" forecolor="#BDC3C7"/>
+                <reportElement x="600" y="50" width="182" height="18" forecolor="#BDC3C7"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="10"/>
+                    <font fontName="DejaVu Sans" size="9"/>
                 </textElement>
-                <textFieldExpression><![CDATA["Generated by: " + $P{GENERATED_BY}]]></textFieldExpression>
+                <textFieldExpression><![CDATA["By: " + $P{GENERATED_BY}]]></textFieldExpression>
             </textField>
 
-            <!-- Version info -->
+            <!-- Report ID -->
             <textField isBlankWhenNull="true">
-                <reportElement x="353" y="73" width="190" height="15" forecolor="#95A5A6"/>
+                <reportElement x="600" y="73" width="182" height="15" forecolor="#95A5A6"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
                     <font fontName="DejaVu Sans" size="8"/>
                 </textElement>
-                <textFieldExpression><![CDATA["v1.0 | " + $P{REPORT_ID}]]></textFieldExpression>
+                <textFieldExpression><![CDATA["ID: " + $P{REPORT_ID}]]></textFieldExpression>
             </textField>
         </band>
     </title>
@@ -142,10 +178,10 @@
 
     <!-- Column Header -->
     <columnHeader>
-        <band height="40" splitType="Stretch">
+        <band height="45" splitType="Stretch">
             <!-- Table Header Background -->
             <rectangle radius="5">
-                <reportElement x="0" y="0" width="555" height="35" backcolor="#34495E"/>
+                <reportElement x="0" y="0" width="802" height="40" backcolor="#34495E"/>
                 <graphicElement>
                     <pen lineWidth="0.0" lineColor="#34495E"/>
                 </graphicElement>
@@ -153,35 +189,68 @@
 
             <!-- Column Headers -->
             <staticText>
-                <reportElement x="10" y="8" width="150" height="20" forecolor="#FFFFFF"/>
+                <reportElement x="10" y="10" width="80" height="20" forecolor="#FFFFFF"/>
                 <textElement verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Branch ID]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="100" y="10" width="150" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Branch Name]]></text>
             </staticText>
 
             <staticText>
-                <reportElement x="170" y="8" width="80" height="20" forecolor="#FFFFFF"/>
+                <reportElement x="260" y="10" width="150" height="20" forecolor="#FFFFFF"/>
                 <textElement verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
-                </textElement>
-                <text><![CDATA[Users]]></text>
-            </staticText>
-
-            <staticText>
-                <reportElement x="260" y="8" width="180" height="20" forecolor="#FFFFFF"/>
-                <textElement verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Address]]></text>
             </staticText>
 
             <staticText>
-                <reportElement x="450" y="8" width="60" height="20" forecolor="#FFFFFF"/>
+                <reportElement x="420" y="10" width="80" height="20" forecolor="#FFFFFF"/>
                 <textElement verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Phone]]></text>
+            </staticText>
+
+            <!-- FIXED: Use staticText for header -->
+            <staticText>
+                <reportElement x="510" y="10" width="100" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Created Date]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="620" y="10" width="60" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Users]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="690" y="10" width="60" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Floors]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="760" y="10" width="32" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Spaces]]></text>
             </staticText>
         </band>
     </columnHeader>
@@ -191,7 +260,7 @@
         <band height="45" splitType="Stretch">
             <!-- Alternating row background -->
             <rectangle>
-                <reportElement x="0" y="0" width="555" height="35" mode="Opaque" backcolor="#F8F9FA">
+                <reportElement x="0" y="0" width="802" height="35" mode="Opaque" backcolor="#F8F9FA">
                     <printWhenExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></printWhenExpression>
                 </reportElement>
                 <graphicElement>
@@ -199,45 +268,81 @@
                 </graphicElement>
             </rectangle>
 
-            <!-- Branch Name -->
+            <!-- Branch ID -->
             <textField isBlankWhenNull="true">
-                <reportElement x="10" y="5" width="150" height="25"/>
+                <reportElement x="10" y="8" width="80" height="20"/>
                 <textElement verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                    <font fontName="DejaVu Sans" size="9"/>
                 </textElement>
-                <textFieldExpression><![CDATA[$F{branchName}]]></textFieldExpression>
+                <textFieldExpression><![CDATA[$F{branch_id}]]></textFieldExpression>
             </textField>
 
-            <!-- User Count -->
+            <!-- Branch Name -->
             <textField isBlankWhenNull="true">
-                <reportElement x="170" y="5" width="80" height="25"/>
+                <reportElement x="100" y="8" width="150" height="20"/>
                 <textElement verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="10"/>
+                    <font fontName="DejaVu Sans" size="9" isBold="true"/>
                 </textElement>
-                <textFieldExpression><![CDATA[$F{userCount}]]></textFieldExpression>
+                <textFieldExpression><![CDATA[$F{branch_name}]]></textFieldExpression>
             </textField>
 
             <!-- Address -->
             <textField isBlankWhenNull="true">
-                <reportElement x="260" y="5" width="180" height="35"/>
-                <textElement verticalAlignment="Top">
+                <reportElement x="260" y="8" width="150" height="20"/>
+                <textElement verticalAlignment="Middle">
                     <font fontName="DejaVu Sans" size="9"/>
                 </textElement>
-                <textFieldExpression><![CDATA[$F{address}]]></textFieldExpression>
+                <textFieldExpression><![CDATA[$F{branch_address}]]></textFieldExpression>
             </textField>
 
             <!-- Phone -->
             <textField isBlankWhenNull="true">
-                <reportElement x="450" y="5" width="60" height="25"/>
+                <reportElement x="420" y="8" width="80" height="20"/>
                 <textElement verticalAlignment="Middle">
                     <font fontName="DejaVu Sans" size="9"/>
                 </textElement>
-                <textFieldExpression><![CDATA[$F{phone}]]></textFieldExpression>
+                <textFieldExpression><![CDATA[$F{branch_phone} != null ? $F{branch_phone} : "N/A"]]></textFieldExpression>
+            </textField>
+
+            <!-- Created Date -->
+            <textField pattern="yyyy-MM-dd">
+                <reportElement x="510" y="8" width="100" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{created_date}]]></textFieldExpression>
+            </textField>
+
+            <!-- User Count -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="620" y="8" width="60" height="20"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{user_count}]]></textFieldExpression>
+            </textField>
+
+            <!-- Floor Count -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="690" y="8" width="60" height="20"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{floor_count}]]></textFieldExpression>
+            </textField>
+
+            <!-- Space Count -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="760" y="8" width="32" height="20"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{space_count}]]></textFieldExpression>
             </textField>
 
             <!-- Bottom border -->
             <line>
-                <reportElement x="0" y="34" width="555" height="1"/>
+                <reportElement x="0" y="34" width="802" height="1"/>
                 <graphicElement>
                     <pen lineWidth="0.5" lineColor="#E9ECEF"/>
                 </graphicElement>
@@ -252,123 +357,173 @@
 
     <!-- Page Footer -->
     <pageFooter>
-        <band height="50" splitType="Stretch">
+        <band height="40" splitType="Stretch">
             <!-- Confidential watermark -->
             <textField>
-                <reportElement x="0" y="0" width="555" height="15" forecolor="#D1D5DB"/>
+                <reportElement x="0" y="5" width="802" height="15" forecolor="#D1D5DB"/>
                 <textElement textAlignment="Center">
-                    <font fontName="DejaVu Sans" size="8"/>
+                    <font fontName="DejaVu Sans" size="7"/>
                 </textElement>
                 <textFieldExpression><![CDATA["CONFIDENTIAL - For Internal Use Only"]]></textFieldExpression>
             </textField>
 
             <!-- Page counter -->
             <textField>
-                <reportElement x="0" y="20" width="275" height="20"/>
+                <reportElement x="0" y="20" width="400" height="15"/>
                 <textElement textAlignment="Left">
-                    <font fontName="DejaVu Sans" size="9" isItalic="true"/>
-                </textElement>
-                <textFieldExpression><![CDATA["Generated on " + new java.util.Date()]]></textFieldExpression>
-            </textField>
-
-            <!-- Page number -->
-            <textField evaluationTime="Report">
-                <reportElement x="280" y="20" width="275" height="20"/>
-                <textElement textAlignment="Right">
-                    <font fontName="DejaVu Sans" size="9" isItalic="true"/>
+                    <font fontName="DejaVu Sans" size="8" isItalic="true"/>
                 </textElement>
                 <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " of " + $V{PAGE_COUNT}]]></textFieldExpression>
+            </textField>
+
+            <!-- Timestamp -->
+            <textField pattern="HH:mm:ss">
+                <reportElement x="402" y="20" width="400" height="15"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="8" isItalic="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
             </textField>
         </band>
     </pageFooter>
 
-    <!-- Last Page Footer -->
-    <lastPageFooter>
-        <band height="0" splitType="Stretch"/>
-    </lastPageFooter>
-
     <!-- Summary -->
     <summary>
-        <band height="100" splitType="Stretch">
-            <!-- Stats Background -->
+        <band height="150" splitType="Stretch">
+            <!-- Summary Background -->
             <rectangle radius="5">
-                <reportElement x="0" y="0" width="555" height="90" backcolor="#F8F9FA"/>
+                <reportElement x="0" y="0" width="802" height="140" backcolor="#2C3E50"/>
                 <graphicElement>
-                    <pen lineWidth="1.0" lineColor="#DEE2E6"/>
+                    <pen lineWidth="0.0" lineColor="#2C3E50"/>
                 </graphicElement>
             </rectangle>
 
-            <!-- Stats Title -->
-            <staticText>
-                <reportElement x="20" y="10" width="200" height="20" forecolor="#2C3E50"/>
+            <!-- Summary Title -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="20" y="15" width="200" height="25" forecolor="#FFFFFF"/>
                 <textElement verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="12" isBold="true"/>
+                    <font fontName="DejaVu Sans" size="14" isBold="true"/>
                 </textElement>
-                <text><![CDATA[Key Performance Indicators]]></text>
-            </staticText>
+                <textFieldExpression><![CDATA["BRANCH ANALYTICS SUMMARY"]]></textFieldExpression>
+            </textField>
 
-            <!-- Total Branches -->
+            <!-- Totals Section -->
             <staticText>
-                <reportElement x="30" y="40" width="120" height="15" forecolor="#6C757D"/>
+                <reportElement x="30" y="50" width="150" height="20" forecolor="#ECF0F1"/>
                 <textElement verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="9" isBold="true"/>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Total Branches:]]></text>
             </staticText>
-            <textField>
-                <reportElement x="150" y="40" width="50" height="15" forecolor="#2C3E50"/>
+            <textField evaluationTime="Report">
+                <reportElement x="180" y="50" width="50" height="20" forecolor="#FFFFFF"/>
                 <textElement verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$P{TOTAL_BRANCHES}]]></textFieldExpression>
             </textField>
 
-            <!-- Total Users -->
             <staticText>
-                <reportElement x="220" y="40" width="100" height="15" forecolor="#6C757D"/>
+                <reportElement x="250" y="50" width="120" height="20" forecolor="#ECF0F1"/>
                 <textElement verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="9" isBold="true"/>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Total Users:]]></text>
             </staticText>
-            <textField>
-                <reportElement x="320" y="40" width="50" height="15" forecolor="#2C3E50"/>
+            <textField evaluationTime="Report">
+                <reportElement x="370" y="50" width="50" height="20" forecolor="#FFFFFF"/>
                 <textElement verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
                 </textElement>
-                <textFieldExpression><![CDATA[$P{TOTAL_USERS}]]></textFieldExpression>
+                <textFieldExpression><![CDATA[$V{TotalUsers}]]></textFieldExpression>
             </textField>
 
-            <!-- Average Users -->
             <staticText>
-                <reportElement x="390" y="40" width="140" height="15" forecolor="#6C757D"/>
-                <textElement verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="9" isBold="true"/>
-                </textElement>
-                <text><![CDATA[Avg Users/Branch:]]></text>
-            </staticText>
-            <textField>
-                <reportElement x="530" y="40" width="15" height="15" forecolor="#2C3E50"/>
+                <reportElement x="440" y="50" width="120" height="20" forecolor="#ECF0F1"/>
                 <textElement verticalAlignment="Middle">
                     <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Total Floors:]]></text>
+            </staticText>
+            <textField evaluationTime="Report">
+                <reportElement x="560" y="50" width="50" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$V{TotalFloors}]]></textFieldExpression>
+            </textField>
+
+            <staticText>
+                <reportElement x="630" y="50" width="120" height="20" forecolor="#ECF0F1"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Total Spaces:]]></text>
+            </staticText>
+            <textField evaluationTime="Report">
+                <reportElement x="750" y="50" width="50" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$V{TotalSpaces}]]></textFieldExpression>
+            </textField>
+
+            <!-- Averages Section -->
+            <staticText>
+                <reportElement x="30" y="80" width="200" height="20" forecolor="#ECF0F1"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Average Users per Branch:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="230" y="80" width="80" height="20" forecolor="#BDC3C7"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$P{AVERAGE_USERS_PER_BRANCH}]]></textFieldExpression>
             </textField>
 
+            <!-- Range Section -->
+            <staticText>
+                <reportElement x="330" y="80" width="180" height="20" forecolor="#ECF0F1"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[User Range (Min-Max):]]></text>
+            </staticText>
+            <textField evaluationTime="Report">
+                <reportElement x="510" y="80" width="100" height="20" forecolor="#BDC3C7"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <!-- FIXED: Convert Long to String before concatenation -->
+                <textFieldExpression><![CDATA[String.valueOf($V{MinUsers}) + " - " + String.valueOf($V{MaxUsers})]]></textFieldExpression>
+            </textField>
+
             <!-- Report Period -->
             <staticText>
-                <reportElement x="30" y="65" width="100" height="15" forecolor="#6C757D"/>
+                <reportElement x="30" y="110" width="100" height="20" forecolor="#ECF0F1"/>
                 <textElement verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="9" isBold="true"/>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Report Period:]]></text>
             </staticText>
             <textField>
-                <reportElement x="130" y="65" width="200" height="15" forecolor="#2C3E50"/>
+                <reportElement x="130" y="110" width="200" height="20" forecolor="#BDC3C7"/>
                 <textElement verticalAlignment="Middle">
-                    <font fontName="DejaVu Sans" size="9"/>
+                    <font fontName="DejaVu Sans" size="10"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$P{REPORT_PERIOD}]]></textFieldExpression>
+            </textField>
+
+            <!-- Generated Timestamp -->
+            <textField pattern="yyyy-MM-dd HH:mm:ss">
+                <reportElement x="600" y="110" width="182" height="20" forecolor="#BDC3C7"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
             </textField>
         </band>
     </summary>
@@ -377,11 +532,11 @@
     <noData>
         <band height="100" splitType="Stretch">
             <textField>
-                <reportElement x="0" y="0" width="555" height="100" forecolor="#999999"/>
+                <reportElement x="0" y="0" width="802" height="100" forecolor="#999999"/>
                 <textElement textAlignment="Center" verticalAlignment="Middle">
                     <font fontName="DejaVu Sans" size="14" isBold="true"/>
                 </textElement>
-                <textFieldExpression><![CDATA["No branch data available for the selected criteria"]]></textFieldExpression>
+                <textFieldExpression><![CDATA["No branch data available for analysis"]]></textFieldExpression>
             </textField>
         </band>
     </noData>

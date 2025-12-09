@@ -11,11 +11,11 @@ import java.util.UUID;
 public class SubscriptionEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO) // Ensure generation strategy
+    @GeneratedValue(strategy = GenerationType.AUTO)
     @UuidGenerator
     private UUID id;
 
-    @Column(nullable = false, length = 65535) // optional, aligns with TEXT
+    @Column(nullable = false, length = 65535)
     private String endpoint;
 
     @Column(nullable = false, length = 65535)
@@ -26,5 +26,5 @@ public class SubscriptionEntity {
 
     @ManyToOne
     @JoinColumn(name = "user_id")
-    private User user; // optional back-reference
+    private User user;
 }

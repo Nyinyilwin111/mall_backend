@@ -12,14 +12,24 @@
               topMargin="20"
               bottomMargin="20">
 
-    <parameter name="REPORT_TITLE" class="java.lang.String">
+    <property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
+
+    <!-- Parameters -->
+    <parameter name="REPORT_TITLE" class="java.lang.String" isForPrompting="false">
         <defaultValueExpression><![CDATA["FLOOR SPACE REPORT"]]></defaultValueExpression>
     </parameter>
-    <parameter name="COMPANY_NAME" class="java.lang.String">
+    <parameter name="COMPANY_NAME" class="java.lang.String" isForPrompting="false">
         <defaultValueExpression><![CDATA["Sein Gar Har Real Estate"]]></defaultValueExpression>
     </parameter>
-    <parameter name="REPORT_DATE" class="java.util.Date">
+    <parameter name="COMPANY_LOGO" class="java.io.InputStream" isForPrompting="false"/>
+    <parameter name="REPORT_DATE" class="java.util.Date" isForPrompting="false">
         <defaultValueExpression><![CDATA[new java.util.Date()]]></defaultValueExpression>
+    </parameter>
+    <parameter name="GENERATED_BY" class="java.lang.String" isForPrompting="false">
+        <defaultValueExpression><![CDATA["System Administrator"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="REPORT_ID" class="java.lang.String" isForPrompting="false">
+        <defaultValueExpression><![CDATA["FLOOR-" + new java.util.Date().getTime()]]></defaultValueExpression>
     </parameter>
     <parameter name="FLOOR_ID" class="java.lang.Integer">
         <defaultValueExpression><![CDATA[0]]></defaultValueExpression>
@@ -27,26 +37,30 @@
     <parameter name="FLOOR_LEVEL" class="java.lang.String">
         <defaultValueExpression><![CDATA[""]]></defaultValueExpression>
     </parameter>
+    <parameter name="BRANCH_NAME" class="java.lang.String">
+        <defaultValueExpression><![CDATA[""]]></defaultValueExpression>
+    </parameter>
 
     <queryString>
         <![CDATA[
-        SELECT
-            s.space_code,
-            s.location,
-            s.size_sqft,
-            s.price,
-            s.status,
-            st.type_name as space_type,
-            f.level as floor_level,
-            b.name as branch_name,
-            s.amenities
-        FROM space s
-        LEFT JOIN spacetype st ON s.space_type_id = st.space_type_id
-        LEFT JOIN floor f ON s.Floor_floor_id = f.floor_id
-        LEFT JOIN branches b ON f.branch_branch_id = b.id
-        WHERE f.floor_id = $P{FLOOR_ID}
-        ORDER BY s.space_code
-        ]]>
+    SELECT
+        s.space_code,
+        s.location,
+        s.size_sqft,
+        s.price,
+        s.status,
+        st.type_name as space_type,
+        f.floor_id,  -- ADD THIS: Get the floor ID from the query
+        f.level as floor_level,
+        b.name as branch_name,
+        s.amenities
+    FROM space s
+    LEFT JOIN spacetype st ON s.space_type_id = st.space_type_id
+    LEFT JOIN floor f ON s.Floor_floor_id = f.floor_id
+    LEFT JOIN branches b ON f.branch_branch_id = b.id
+    WHERE f.floor_id = $P{FLOOR_ID}
+    ORDER BY s.space_code
+    ]]>
     </queryString>
 
     <field name="space_code" class="java.lang.String"/>
@@ -55,6 +69,7 @@
     <field name="price" class="java.lang.Double"/>
     <field name="status" class="java.lang.String"/>
     <field name="space_type" class="java.lang.String"/>
+    <field name="floor_id" class="java.lang.Integer"/>  <!-- ADD THIS FIELD -->
     <field name="floor_level" class="java.lang.String"/>
     <field name="branch_name" class="java.lang.String"/>
     <field name="amenities" class="java.lang.String"/>
@@ -75,162 +90,229 @@
         <variableExpression><![CDATA[$F{size_sqft}]]></variableExpression>
     </variable>
 
+    <variable name="TOTAL_VALUE" class="java.lang.Double" calculation="Sum">
+        <variableExpression><![CDATA[$F{price} != null ? $F{price} : 0]]></variableExpression>
+    </variable>
+
+    <!-- Title Band -->
     <title>
-        <band height="120">
-            <rectangle>
-                <reportElement x="0" y="0" width="595" height="100" backcolor="#2C3E50"/>
+        <band height="150" splitType="Stretch">
+            <!-- Header Background -->
+            <rectangle radius="8">
+                <reportElement x="0" y="0" width="555" height="120" backcolor="#2C3E50"/>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#2C3E50"/>
+                </graphicElement>
             </rectangle>
 
-            <textField>
-                <reportElement x="20" y="15" width="300" height="25" forecolor="#FFFFFF"/>
-                <textElement>
-                    <font size="16" isBold="true"/>
+            <!-- Logo -->
+            <image scaleImage="RetainShape" onErrorType="Blank">
+                <reportElement x="20" y="25" width="60" height="60"/>
+                <imageExpression><![CDATA[$P{COMPANY_LOGO}]]></imageExpression>
+            </image>
+
+            <!-- Company Name -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="100" y="25" width="300" height="25" forecolor="#FFFFFF"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="16" isBold="true"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$P{COMPANY_NAME}]]></textFieldExpression>
             </textField>
 
-            <textField>
-                <reportElement x="20" y="45" width="300" height="30" forecolor="#ECF0F1"/>
-                <textElement>
-                    <font size="20" isBold="true"/>
+            <!-- Report Title -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="100" y="55" width="300" height="20" forecolor="#ECF0F1"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="12"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression>
             </textField>
 
-            <textField pattern="MMMMM dd, yyyy">
-                <reportElement x="400" y="15" width="175" height="20" forecolor="#BDC3C7"/>
-                <textElement textAlignment="Right">
-                    <font size="10"/>
+            <!-- Floor and Branch Info - Show floor ID from query result -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="100" y="80" width="300" height="30" forecolor="#BDC3C7"/>
+                <textElement textAlignment="Left" verticalAlignment="Top">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                    "Floor ID: " + ($F{floor_id} != null ? $F{floor_id}.toString() : "N/A") +
+                    " | Level: " + ($F{floor_level} != null ? $F{floor_level} : "Unknown") +
+                    ($F{branch_name} != null ? " | Branch: " + $F{branch_name} : "")
+                ]]></textFieldExpression>
+            </textField>
+
+            <!-- Date -->
+            <textField pattern="EEE, MMM dd, yyyy">
+                <reportElement x="420" y="25" width="130" height="20" forecolor="#ECF0F1"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$P{REPORT_DATE}]]></textFieldExpression>
             </textField>
 
-            <textField>
-                <reportElement x="20" y="80" width="400" height="15" forecolor="#BDC3C7"/>
-                <textElement>
-                    <font size="10"/>
+            <!-- Generated by -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="420" y="50" width="130" height="18" forecolor="#BDC3C7"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9"/>
                 </textElement>
-                <textFieldExpression><![CDATA[
-                    "Floor: " + $P{FLOOR_LEVEL} + " (ID: " + $P{FLOOR_ID} + ")"
-                ]]></textFieldExpression>
+                <textFieldExpression><![CDATA["By: " + $P{GENERATED_BY}]]></textFieldExpression>
+            </textField>
+
+            <!-- Report ID -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="420" y="73" width="130" height="15" forecolor="#95A5A6"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA["ID: " + $P{REPORT_ID}]]></textFieldExpression>
             </textField>
         </band>
     </title>
 
+    <!-- Column Header -->
     <columnHeader>
-        <band height="40">
-            <rectangle>
-                <reportElement x="0" y="0" width="555" height="35" backcolor="#34495E"/>
+        <band height="50" splitType="Stretch">
+            <!-- Table Header Background -->
+            <rectangle radius="5">
+                <reportElement x="0" y="0" width="555" height="45" backcolor="#34495E"/>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#34495E"/>
+                </graphicElement>
             </rectangle>
 
+            <!-- Column Headers -->
             <staticText>
-                <reportElement x="10" y="8" width="80" height="20" forecolor="#FFFFFF"/>
+                <reportElement x="5" y="10" width="80" height="25" forecolor="#FFFFFF"/>
                 <textElement verticalAlignment="Middle">
-                    <font isBold="true"/>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Space Code]]></text>
             </staticText>
 
             <staticText>
-                <reportElement x="100" y="8" width="100" height="20" forecolor="#FFFFFF"/>
+                <reportElement x="90" y="10" width="100" height="25" forecolor="#FFFFFF"/>
                 <textElement verticalAlignment="Middle">
-                    <font isBold="true"/>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Type]]></text>
             </staticText>
 
             <staticText>
-                <reportElement x="210" y="8" width="80" height="20" forecolor="#FFFFFF"/>
+                <reportElement x="195" y="10" width="80" height="25" forecolor="#FFFFFF"/>
                 <textElement verticalAlignment="Middle">
-                    <font isBold="true"/>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
-                <text><![CDATA[Size]]></text>
+                <text><![CDATA[Size (sqft)]]></text>
             </staticText>
 
             <staticText>
-                <reportElement x="300" y="8" width="80" height="20" forecolor="#FFFFFF"/>
+                <reportElement x="280" y="10" width="80" height="25" forecolor="#FFFFFF"/>
                 <textElement verticalAlignment="Middle">
-                    <font isBold="true"/>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Price]]></text>
             </staticText>
 
             <staticText>
-                <reportElement x="390" y="8" width="70" height="20" forecolor="#FFFFFF"/>
+                <reportElement x="365" y="10" width="70" height="25" forecolor="#FFFFFF"/>
                 <textElement verticalAlignment="Middle">
-                    <font isBold="true"/>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Status]]></text>
             </staticText>
 
             <staticText>
-                <reportElement x="470" y="8" width="75" height="20" forecolor="#FFFFFF"/>
+                <reportElement x="440" y="10" width="110" height="25" forecolor="#FFFFFF"/>
                 <textElement verticalAlignment="Middle">
-                    <font isBold="true"/>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Location]]></text>
             </staticText>
         </band>
     </columnHeader>
 
+    <!-- Detail -->
     <detail>
-        <band height="35">
+        <band height="50" splitType="Stretch">
+            <!-- Alternating row background -->
             <rectangle>
-                <reportElement x="0" y="0" width="555" height="35" mode="Opaque" backcolor="#F8F9FA">
+                <reportElement x="0" y="0" width="555" height="40" mode="Opaque" backcolor="#F8F9FA">
                     <printWhenExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></printWhenExpression>
                 </reportElement>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#F8F9FA"/>
+                </graphicElement>
             </rectangle>
 
-            <textField>
-                <reportElement x="10" y="8" width="80" height="20"/>
+            <!-- Space Code -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="5" y="10" width="80" height="20"/>
                 <textElement verticalAlignment="Middle">
-                    <font size="10" isBold="true"/>
+                    <font fontName="DejaVu Sans" size="9" isBold="true"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$F{space_code}]]></textFieldExpression>
             </textField>
 
-            <textField>
-                <reportElement x="100" y="8" width="100" height="20"/>
+            <!-- Space Type -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="90" y="10" width="100" height="20"/>
                 <textElement verticalAlignment="Middle">
-                    <font size="10"/>
+                    <font fontName="DejaVu Sans" size="9"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$F{space_type}]]></textFieldExpression>
             </textField>
 
-            <textField>
-                <reportElement x="210" y="8" width="80" height="20"/>
+            <!-- Size -->
+            <textField pattern="#,##0.00">
+                <reportElement x="195" y="10" width="80" height="20"/>
                 <textElement verticalAlignment="Middle">
-                    <font size="10"/>
+                    <font fontName="DejaVu Sans" size="9"/>
                 </textElement>
-                <textFieldExpression><![CDATA[$F{size_sqft} != null ? $F{size_sqft} + " sq.ft" : "N/A"]]></textFieldExpression>
+                <textFieldExpression><![CDATA[$F{size_sqft}]]></textFieldExpression>
             </textField>
 
-            <textField>
-                <reportElement x="300" y="8" width="80" height="20"/>
+            <!-- Price -->
+            <textField pattern="$#,##0.00">
+                <reportElement x="280" y="10" width="80" height="20"/>
                 <textElement verticalAlignment="Middle">
-                    <font size="10" isBold="true"/>
+                    <font fontName="DejaVu Sans" size="9" isBold="true"/>
                 </textElement>
-                <textFieldExpression><![CDATA[$F{price} != null ? "$ " + $F{price} : "N/A"]]></textFieldExpression>
+                <textFieldExpression><![CDATA[$F{price}]]></textFieldExpression>
             </textField>
 
-            <textField>
-                <reportElement x="390" y="8" width="70" height="20"/>
+            <!-- Status Badge -->
+            <rectangle radius="8">
+                <reportElement x="365" y="10" width="70" height="20" mode="Opaque" backcolor="#6C757D">
+                    <printWhenExpression><![CDATA[$F{status} != null]]></printWhenExpression>
+                </reportElement>
+                <graphicElement>
+                    <pen lineWidth="0.5" lineColor="#DEE2E6"/>
+                </graphicElement>
+            </rectangle>
+            <textField isBlankWhenNull="true">
+                <reportElement x="365" y="10" width="70" height="20" forecolor="#FFFFFF">
+                    <printWhenExpression><![CDATA[$F{status} != null]]></printWhenExpression>
+                </reportElement>
                 <textElement textAlignment="Center" verticalAlignment="Middle">
-                    <font size="9"/>
+                    <font fontName="DejaVu Sans" size="8" isBold="true"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$F{status}]]></textFieldExpression>
             </textField>
 
-            <textField>
-                <reportElement x="470" y="8" width="75" height="20"/>
+            <!-- Location -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="440" y="10" width="110" height="20"/>
                 <textElement textAlignment="Center" verticalAlignment="Middle">
-                    <font size="9"/>
+                    <font fontName="DejaVu Sans" size="8"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$F{location}]]></textFieldExpression>
             </textField>
 
+            <!-- Bottom border -->
             <line>
-                <reportElement x="0" y="34" width="555" height="1"/>
+                <reportElement x="0" y="39" width="555" height="1"/>
                 <graphicElement>
                     <pen lineWidth="0.5" lineColor="#E9ECEF"/>
                 </graphicElement>
@@ -238,48 +320,87 @@
         </band>
     </detail>
 
+    <!-- Page Footer -->
+    <pageFooter>
+        <band height="40" splitType="Stretch">
+            <!-- Confidential watermark -->
+            <textField>
+                <reportElement x="0" y="5" width="555" height="15" forecolor="#D1D5DB"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="7"/>
+                </textElement>
+                <textFieldExpression><![CDATA["CONFIDENTIAL - For Internal Use Only"]]></textFieldExpression>
+            </textField>
+
+            <!-- Page counter -->
+            <textField>
+                <reportElement x="0" y="20" width="275" height="15"/>
+                <textElement textAlignment="Left">
+                    <font fontName="DejaVu Sans" size="8" isItalic="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " of " + $V{PAGE_COUNT}]]></textFieldExpression>
+            </textField>
+
+            <!-- Page number -->
+            <textField pattern="HH:mm:ss">
+                <reportElement x="280" y="20" width="275" height="15"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="8" isItalic="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <!-- Summary -->
     <summary>
-        <band height="100">
-            <rectangle>
-                <reportElement x="0" y="0" width="555" height="90" backcolor="#2C3E50"/>
+        <band height="80" splitType="Stretch">
+            <!-- Summary Background -->
+            <rectangle radius="5">
+                <reportElement x="0" y="0" width="555" height="70" backcolor="#2C3E50"/>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#2C3E50"/>
+                </graphicElement>
             </rectangle>
 
+            <!-- Statistics -->
             <textField evaluationTime="Report">
-                <reportElement x="20" y="15" width="200" height="20" forecolor="#FFFFFF"/>
+                <reportElement x="20" y="15" width="150" height="20" forecolor="#FFFFFF"/>
                 <textElement verticalAlignment="Middle">
-                    <font isBold="true"/>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
                 <textFieldExpression><![CDATA["Total Spaces: " + $V{TOTAL_SPACES}]]></textFieldExpression>
             </textField>
 
             <textField evaluationTime="Report">
-                <reportElement x="20" y="40" width="200" height="20" forecolor="#FFFFFF"/>
+                <reportElement x="20" y="40" width="150" height="20" forecolor="#BDC3C7"/>
                 <textElement verticalAlignment="Middle">
-                    <font size="10"/>
+                    <font fontName="DejaVu Sans" size="9"/>
                 </textElement>
-                <textFieldExpression><![CDATA["Vacant: " + $V{VACANT_COUNT}]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Vacant: " + $V{VACANT_COUNT} + " | Occupied: " + $V{OCCUPIED_COUNT}]]></textFieldExpression>
             </textField>
 
             <textField evaluationTime="Report">
-                <reportElement x="150" y="40" width="200" height="20" forecolor="#FFFFFF"/>
+                <reportElement x="200" y="15" width="180" height="20" forecolor="#FFFFFF"/>
                 <textElement verticalAlignment="Middle">
-                    <font size="10"/>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
-                <textFieldExpression><![CDATA["Occupied: " + $V{OCCUPIED_COUNT}]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Total Area: " + $V{TOTAL_AREA} + " sqft"]]></textFieldExpression>
             </textField>
 
             <textField evaluationTime="Report">
-                <reportElement x="20" y="65" width="200" height="20" forecolor="#FFFFFF"/>
+                <reportElement x="200" y="40" width="180" height="20" forecolor="#BDC3C7"/>
                 <textElement verticalAlignment="Middle">
-                    <font size="10"/>
+                    <font fontName="DejaVu Sans" size="9"/>
                 </textElement>
-                <textFieldExpression><![CDATA["Total Area: " + ($V{TOTAL_AREA} != null ? $V{TOTAL_AREA} + " sq.ft" : "0 sq.ft")]]></textFieldExpression>
+                <textFieldExpression><![CDATA["Total Value: $" + $V{TOTAL_VALUE}]]></textFieldExpression>
             </textField>
 
-            <textField pattern="HH:mm:ss">
-                <reportElement x="350" y="15" width="185" height="20" forecolor="#BDC3C7"/>
+            <!-- Report Generation Time -->
+            <textField pattern="EEE, MMM dd, yyyy HH:mm:ss">
+                <reportElement x="400" y="15" width="135" height="20" forecolor="#BDC3C7"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="10"/>
+                    <font fontName="DejaVu Sans" size="8"/>
                 </textElement>
                 <textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
             </textField>

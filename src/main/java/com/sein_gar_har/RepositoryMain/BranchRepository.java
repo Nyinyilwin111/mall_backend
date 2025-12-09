@@ -45,6 +45,14 @@ public interface BranchRepository extends JpaRepository<Branch, Long> {
     @Query("SELECT b FROM Branch b WHERE b.id IN :branchIds")
     List<Branch> findByIds(@Param("branchIds") Set<Long> branchIds);
 
+    @Query("SELECT COUNT(f) FROM Floor f WHERE f.branchBranchId = :branchId")
+    long countFloorsByBranchId(@Param("branchId") Long branchId);
+
+    @Query("SELECT COUNT(s) FROM Space s " +
+            "JOIN Floor f ON s.floor.floorId = f.floorId " +
+            "WHERE f.branchBranchId = :branchId")
+    long countSpacesByBranchId(@Param("branchId") Long branchId);
+
     @Query("SELECT b FROM Branch b LEFT JOIN FETCH b.users")
     List<Branch> findAllWithUsers();
 

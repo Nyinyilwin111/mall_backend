@@ -1,14 +1,21 @@
 package com.sein_gar_har.controller;
 
+import com.sein_gar_har.Services.LeaseService;
 import com.sein_gar_har.Services.PaymentService;
+import com.sein_gar_har.Services.SpaceService;
 import com.sein_gar_har.dto.request.PaymentRequest;
+import com.sein_gar_har.dto.response.LeaseResponse;
 import com.sein_gar_har.dto.response.PaymentResponse;
+import com.sein_gar_har.dto.response.SpaceResponseDTO;
+import com.sein_gar_har.entity.Lease;
+import com.sein_gar_har.entity.Space;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
-import java.util.UUID;
+
+import java.util.*;
 
 @RestController
 @CrossOrigin(origins = "*")
@@ -17,6 +24,12 @@ public class PaymentController {
 
     @Autowired
     private PaymentService paymentService;
+
+    @Autowired
+    private LeaseService leaseService;
+
+    @Autowired
+    private SpaceService spaceService;
 
     // ✅ CREATE LEASE PAYMENT
     @PostMapping(value = "/leasepayment", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -71,8 +84,36 @@ public class PaymentController {
     // ✅ GET LEASE PAYMENTS BY LEASE ID
     @GetMapping("/lease/{leaseId}/payments")
     public ResponseEntity<List<PaymentResponse>> getLeasePayments(@PathVariable Long leaseId) {
-        List<PaymentResponse> payments = paymentService.getPaymentsByLeaseId(leaseId);
-        return ResponseEntity.ok(payments);
+        try {
+            List<PaymentResponse> payments = paymentService.getPaymentsByLeaseId(leaseId);
+
+            // Get lease info
+            LeaseResponse lease = leaseService.getLeaseById(leaseId);
+
+            if (lease != null && lease.getSpaceId() != null) {
+                try {
+                    // Get space info
+                    SpaceResponseDTO space = spaceService.getSpaceById(lease.getSpaceId());
+
+                    // Add space info to each payment
+                    if (space != null) {
+                        for (PaymentResponse payment : payments) {
+                            payment.setSpaceId(space.getSpaceId());
+                            payment.setSpaceCode(space.getSpaceCode());
+                        }
+                    }
+                } catch (Exception e) {
+                    System.err.println("Could not fetch space info for lease " + leaseId + ": " + e.getMessage());
+                }
+            }
+
+            return ResponseEntity.ok(payments);
+
+        } catch (Exception e) {
+            System.err.println("Error fetching payments for lease " + leaseId + ": " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     // ✅ GET UTILITY PAYMENTS BY UTILITY ID

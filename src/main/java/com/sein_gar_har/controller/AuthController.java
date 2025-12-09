@@ -5,16 +5,16 @@ import com.sein_gar_har.RepositoryMain.UserRepository;
 import com.sein_gar_har.Services.UserService;
 import com.sein_gar_har.Services.implementation.CustomUserDetailsService;
 import com.sein_gar_har.config.TokenProvider;
+import com.sein_gar_har.dto.request.ChangePasswordRequest;
 import com.sein_gar_har.dto.request.LoginRequestDTO;
 import com.sein_gar_har.dto.request.SignupRequest;
 import com.sein_gar_har.dto.request.UpdateUserRequestDTO;
-import com.sein_gar_har.dto.response.BranchResponseDTO;
-import com.sein_gar_har.dto.response.LoginResponseDTO;
-import com.sein_gar_har.dto.response.PermissionResponseDTO;
-import com.sein_gar_har.dto.response.RoleResponseDTO;
+import com.sein_gar_har.dto.response.*;
 import com.sein_gar_har.entity.Role;
 import com.sein_gar_har.entity.User;
 import com.sein_gar_har.exception.UserException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -175,5 +176,77 @@ public ResponseEntity<LoginResponseDTO> login(@RequestBody LoginRequestDTO login
 
     return new ResponseEntity<>(loginResponseDTO, HttpStatus.ACCEPTED);
 }
+    @PutMapping("/change-password")
+    public ResponseEntity<ApiResponse<ChangePasswordResponse>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            HttpServletRequest httpRequest) {
+
+        try {
+            // Process password change
+            ChangePasswordResponse response = userService.changePassword(request);
+
+            // Return appropriate response based on success
+            if (response.isSuccess()) {
+                return ResponseEntity.ok(ApiResponse.success(
+                        response.getMessage(),
+                        response
+                ));
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ApiResponse.error(response.getMessage(), HttpStatus.BAD_REQUEST.value()));
+            }
+
+        } catch (Exception e) {
+            log.error("Error processing password change: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Internal server error. Please try again later.",
+                            HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
+    }
+
+    @GetMapping("/password-strength")
+    public ResponseEntity<ApiResponse<String>> checkPasswordStrength(
+            @RequestParam String password) {
+        try {
+            // Simple strength check for frontend
+            if (password == null || password.trim().isEmpty()) {
+                return ResponseEntity.ok(ApiResponse.success(
+                        "Password is empty",
+                        "EMPTY"
+                ));
+            }
+
+            int length = password.length();
+            boolean hasUpper = password.matches(".*[A-Z].*");
+            boolean hasLower = password.matches(".*[a-z].*");
+            boolean hasDigit = password.matches(".*\\d.*");
+            boolean hasSpecial = password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*");
+
+            int score = 0;
+            if (hasUpper) score++;
+            if (hasLower) score++;
+            if (hasDigit) score++;
+            if (hasSpecial) score++;
+            if (length >= 8) score++;
+            if (length >= 12) score++;
+
+            String strength;
+            if (score >= 5) strength = "VERY_STRONG";
+            else if (score >= 4) strength = "STRONG";
+            else if (score >= 3) strength = "MEDIUM";
+            else if (score >= 2) strength = "WEAK";
+            else strength = "VERY_WEAK";
+
+            return ResponseEntity.ok(ApiResponse.success(
+                    "Password strength checked",
+                    strength
+            ));
+
+        } catch (Exception e) {
+            log.error("Error checking password strength: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Failed to check password strength",HttpStatus.INTERNAL_SERVER_ERROR.value()));
+        }
+    }
 
 }

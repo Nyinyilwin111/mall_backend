@@ -6,6 +6,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -18,9 +19,13 @@ public class PaymentResponse {
     private String paymentMethod;
     private String status;
     private String proofImageUrl;
-    private String paymentType; // "LEASE" or "UTILITY"
+    private String paymentType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    private UUID spaceId;
+    private String spaceCode;
+    private String spaceType;
 
     public PaymentResponse(Payment payment) {
         this.paymentId = payment.getPaymentId();
@@ -34,6 +39,7 @@ public class PaymentResponse {
         this.paymentType = payment.getLease() != null ? "LEASE" : "UTILITY";
         this.createdAt = payment.getCreatedAt();
         this.updatedAt = payment.getUpdatedAt();
+
     }
 
     // Default constructor

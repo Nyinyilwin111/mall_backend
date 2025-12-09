@@ -8,7 +8,7 @@ public class SeinGarHarApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(SeinGarHarApplication.class, args);
-
+    
         System.out.println("This is main.!");
 	}
 

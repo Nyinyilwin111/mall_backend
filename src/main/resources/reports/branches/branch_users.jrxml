@@ -21,7 +21,7 @@
         <defaultValueExpression><![CDATA["BRANCH USERS REPORT"]]></defaultValueExpression>
     </parameter>
     <parameter name="COMPANY_NAME" class="java.lang.String" isForPrompting="false">
-        <defaultValueExpression><![CDATA["Sein Gar Har Real Estate"]]></defaultValueExpression>
+        <defaultValueExpression><![CDATA["Sein Gar Har"]]></defaultValueExpression>
     </parameter>
     <parameter name="COMPANY_LOGO" class="java.io.InputStream" isForPrompting="false"/>
     <parameter name="REPORT_DATE" class="java.util.Date" isForPrompting="false">

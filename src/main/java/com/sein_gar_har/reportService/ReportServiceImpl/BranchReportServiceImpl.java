@@ -199,15 +199,32 @@ public class BranchReportServiceImpl implements BranchReportService {
                     .sum();
             double averageUsersPerBranch = totalBranches > 0 ? (double) totalUsers / totalBranches : 0;
 
-            // Prepare analytics data
+            // Calculate total floors and spaces
+            long totalFloors = calculateTotalFloors(branches);
+            long totalSpaces = calculateTotalSpaces(branches);
+
+            // Prepare analytics data with all required fields
             List<Map<String, Object>> analyticsData = branches.stream()
                     .map(branch -> {
                         Map<String, Object> data = new HashMap<>();
-                        data.put("branchName", branch.getName());
-                        data.put("userCount", branch.getUsers() != null ? branch.getUsers().size() : 0);
-                        data.put("address", branch.getAddress());
-                        data.put("phone", branch.getPhoneNumber() != null ? branch.getPhoneNumber() : "N/A");
-                        data.put("createdDate", branch.getCreatedAt()); // This is LocalDateTime
+                        data.put("branch_id", branch.getId());
+                        data.put("branch_name", branch.getName());
+                        data.put("branch_address", branch.getAddress());
+                        data.put("branch_phone", branch.getPhoneNumber() != null ? branch.getPhoneNumber() : "N/A");
+
+                        // FIX: Pass LocalDateTime directly (NOT Timestamp)
+                        data.put("created_date", branch.getCreatedAt());
+
+                        // Convert Integer to Long
+                        int userCount = branch.getUsers() != null ? branch.getUsers().size() : 0;
+                        data.put("user_count", Long.valueOf(userCount));
+
+                        // Calculate branch-specific floor and space counts
+                        long branchFloors = countFloorsForBranch(branch.getId());
+                        long branchSpaces = countSpacesForBranch(branch.getId());
+
+                        data.put("floor_count", branchFloors);
+                        data.put("space_count", branchSpaces);
                         return data;
                     })
                     .collect(Collectors.toList());
@@ -221,13 +238,20 @@ public class BranchReportServiceImpl implements BranchReportService {
             parameters.put("COMPANY_NAME", "Sein Gar Har Real Estate");
             parameters.put("REPORT_DATE", new Date());
             parameters.put("GENERATED_BY", "System Administrator");
-            parameters.put("REPORT_ID", "BRANCH-ANALYTICS-2025");
-            parameters.put("TOTAL_BRANCHES", totalBranches);
-            parameters.put("TOTAL_USERS", totalUsers);
+            parameters.put("REPORT_ID", "BRANCH-ANALYTICS-" + new java.text.SimpleDateFormat("yyyyMMdd").format(new Date()));
+            parameters.put("TOTAL_BRANCHES", (int) totalBranches);
+            parameters.put("TOTAL_USERS", (int) totalUsers);
+            parameters.put("TOTAL_FLOORS", (int) totalFloors);
+            parameters.put("TOTAL_SPACES", (int) totalSpaces);
             parameters.put("AVERAGE_USERS_PER_BRANCH", String.format("%.2f", averageUsersPerBranch));
             parameters.put("GENERATED_DATE", new Date());
             parameters.put("REPORT_PERIOD", "All Time");
-            parameters.put("COMPANY_LOGO", null);
+
+            // Load logo
+            InputStream logoStream = loadLogo();
+            if (logoStream != null) {
+                parameters.put("COMPANY_LOGO", logoStream);
+            }
 
             // Create data source
             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(analyticsData);
@@ -242,6 +266,70 @@ public class BranchReportServiceImpl implements BranchReportService {
             log.error("Error generating branch analytics report", e);
             throw new RuntimeException("Failed to generate branch analytics report: " + e.getMessage(), e);
         }
+    }
+
+    private long calculateTotalFloors(List<Branch> branches) {
+        return branches.stream()
+                .mapToLong(branch -> countFloorsForBranch(branch.getId()))
+                .sum();
+    }
+
+    private long calculateTotalSpaces(List<Branch> branches) {
+        return branches.stream()
+                .mapToLong(branch -> countSpacesForBranch(branch.getId()))
+                .sum();
+    }
+
+    private long countFloorsForBranch(Long branchId) {
+        try {
+            return branchRepository.countFloorsByBranchId(branchId);
+        } catch (Exception e) {
+            log.warn("Could not count floors for branch {}: {}", branchId, e.getMessage());
+            return 0L;
+        }
+    }
+
+    private long countSpacesForBranch(Long branchId) {
+        try {
+            return branchRepository.countSpacesByBranchId(branchId);
+        } catch (Exception e) {
+            log.warn("Could not count spaces for branch {}: {}", branchId, e.getMessage());
+            return 0L;
+        }
+    }
+
+    private InputStream loadLogo() {
+        String[] possiblePaths = {
+                "classpath:image/SGH-logo.png",
+                "classpath:/image/SGH-logo.png",
+                "image/SGH-logo.png",
+                "/image/SGH-logo.png",
+                "src/main/resources/image/SGH-logo.png"
+        };
+
+        for (String path : possiblePaths) {
+            try {
+                if (path.startsWith("classpath:")) {
+                    String resourcePath = path.substring("classpath:".length());
+                    InputStream stream = getClass().getClassLoader().getResourceAsStream(resourcePath);
+                    if (stream != null && stream.available() > 0) {
+                        log.info("✅ Logo found and loaded from: {}", path);
+                        return stream;
+                    }
+                } else {
+                    InputStream stream = getClass().getClassLoader().getResourceAsStream(path);
+                    if (stream != null && stream.available() > 0) {
+                        log.info("✅ Logo found and loaded from: {}", path);
+                        return stream;
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("❌ Failed to load logo from: {}", path);
+            }
+        }
+
+        log.warn("❌ Logo not found in any location");
+        return null;
     }
 
     // ✅ IMPROVED: Enhanced report loading with multiple fallback options and better error handling

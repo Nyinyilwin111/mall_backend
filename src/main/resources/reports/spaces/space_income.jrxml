@@ -1,0 +1,469 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+                http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="IncomeReport" pageWidth="595" pageHeight="842"
+              columnWidth="555" leftMargin="20" rightMargin="20"
+              topMargin="20" bottomMargin="20">
+
+    <property name="com.jaspersoft.studio.data.defaultdataadapter" value="Database"/>
+
+    <parameter name="BRANCH_ID" class="java.lang.Long"/>
+    <parameter name="REPORT_DATE" class="java.time.LocalDate"/>
+    <parameter name="PERIOD_TYPE" class="java.lang.String"/>
+    <parameter name="REPORT_TITLE" class="java.lang.String"/>
+
+    <!-- Flexible Query with Conditional WHERE Clause -->
+    <queryString>
+        <![CDATA[
+        SELECT
+            s.space_code,
+            st.type_name as space_type,
+            s.location,
+            s.price as space_price,
+            COALESCE(u.company_name, l.company_name, 'N/A') as tenant_name,
+            p.payment_date,
+            CASE
+                WHEN p.payment_method = 'LEASE' THEN p.amount
+                ELSE 0
+            END as lease_amount,
+            CASE
+                WHEN p.payment_method = 'UTILITY' THEN p.amount
+                ELSE 0
+            END as utility_amount,
+            p.amount as total_amount,
+            p.payment_method,
+            b.name as branch_name,
+            f.floor_number,
+            DATE_FORMAT(p.payment_date, '%Y-%m-%d') as formatted_date,
+            DATE_FORMAT(p.payment_date, '%M %Y') as formatted_month,
+            YEAR(p.payment_date) as year
+        FROM payment p
+        LEFT JOIN lease l ON p.lease_id = l.lease_id
+        LEFT JOIN utility u ON p.utility_id = u.utility_id
+        LEFT JOIN space s ON (
+            (l.space_id IS NOT NULL AND l.space_id = s.space_id) OR
+            (u.space_id IS NOT NULL AND u.space_id = s.space_id)
+        )
+        LEFT JOIN spacetype st ON s.space_type_id = st.space_type_id
+        LEFT JOIN floor f ON s.Floor_floor_id = f.floor_id
+        LEFT JOIN building b ON f.building_id = b.building_id
+        WHERE b.branch_id = $P{BRANCH_ID}
+            AND p.status = 'PAID'
+            AND (
+                ($P{PERIOD_TYPE} = 'DAILY' AND DATE(p.payment_date) = DATE($P{REPORT_DATE}))
+                OR ($P{PERIOD_TYPE} = 'MONTHLY'
+                    AND YEAR(p.payment_date) = YEAR($P{REPORT_DATE})
+                    AND MONTH(p.payment_date) = MONTH($P{REPORT_DATE}))
+                OR ($P{PERIOD_TYPE} = 'YEARLY'
+                    AND YEAR(p.payment_date) = YEAR($P{REPORT_DATE}))
+            )
+        ORDER BY
+            p.payment_date,
+            s.space_code,
+            p.payment_method
+        ]]>
+    </queryString>
+
+    <field name="space_code" class="java.lang.String"/>
+    <field name="space_type" class="java.lang.String"/>
+    <field name="location" class="java.lang.String"/>
+    <field name="space_price" class="java.math.BigDecimal"/>
+    <field name="tenant_name" class="java.lang.String"/>
+    <field name="payment_date" class="java.sql.Date"/>
+    <field name="lease_amount" class="java.math.BigDecimal"/>
+    <field name="utility_amount" class="java.math.BigDecimal"/>
+    <field name="total_amount" class="java.math.BigDecimal"/>
+    <field name="payment_method" class="java.lang.String"/>
+    <field name="branch_name" class="java.lang.String"/>
+    <field name="floor_number" class="java.lang.Integer"/>
+    <field name="formatted_date" class="java.lang.String"/>
+    <field name="formatted_month" class="java.lang.String"/>
+    <field name="year" class="java.lang.Integer"/>
+
+    <variable name="total_lease" class="java.math.BigDecimal" calculation="Sum">
+        <variableExpression><![CDATA[$F{lease_amount}]]></variableExpression>
+    </variable>
+
+    <variable name="total_utility" class="java.math.BigDecimal" calculation="Sum">
+        <variableExpression><![CDATA[$F{utility_amount}]]></variableExpression>
+    </variable>
+
+    <variable name="grand_total" class="java.math.BigDecimal" calculation="Sum">
+        <variableExpression><![CDATA[$F{total_amount}]]></variableExpression>
+    </variable>
+
+    <variable name="space_count" class="java.lang.Integer" calculation="Count">
+        <variableExpression><![CDATA[$F{space_code}]]></variableExpression>
+    </variable>
+
+    <!-- Conditional Title Band based on Period -->
+    <title>
+        <band height="120">
+            <staticText>
+                <reportElement x="0" y="0" width="555" height="30"/>
+                <textElement textAlignment="Center">
+                    <font size="20" isBold="true"/>
+                </textElement>
+                <text><![CDATA[SPACE INCOME REPORT]]></text>
+            </staticText>
+
+            <textField>
+                <reportElement x="0" y="35" width="555" height="25"/>
+                <textElement textAlignment="Center">
+                    <font size="16"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{REPORT_TITLE}]]></textFieldExpression>
+            </textField>
+
+            <!-- Branch Name -->
+            <textField>
+                <reportElement x="0" y="65" width="555" height="20"/>
+                <textElement textAlignment="Center">
+                    <font size="12"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Branch: " + $F{branch_name}]]></textFieldExpression>
+            </textField>
+
+            <!-- Period Information -->
+            <textField>
+                <reportElement x="0" y="85" width="555" height="20"/>
+                <textElement textAlignment="Center">
+                    <font size="12"/>
+                </textElement>
+                <textFieldExpression>
+                    <![CDATA[
+                    "Period: " +
+                    ($P{PERIOD_TYPE}.equals("DAILY") ? $F{formatted_date} :
+                     $P{PERIOD_TYPE}.equals("MONTHLY") ? $F{formatted_month} :
+                     "Year " + $F{year})
+                    ]]>
+                </textFieldExpression>
+            </textField>
+
+            <line>
+                <reportElement x="0" y="110" width="555" height="1"/>
+                <graphicElement>
+                    <pen lineWidth="1.5"/>
+                </graphicElement>
+            </line>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="35">
+            <staticText>
+                <reportElement x="0" y="0" width="60" height="35" backcolor="#4A90E2"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Center">
+                    <font isBold="true" size="10" color="#FFFFFF"/>
+                </textElement>
+                <text><![CDATA[Space Code]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="60" y="0" width="80" height="35" backcolor="#4A90E2"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Center">
+                    <font isBold="true" size="10" color="#FFFFFF"/>
+                </textElement>
+                <text><![CDATA[Type]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="140" y="0" width="70" height="35" backcolor="#4A90E2"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Center">
+                    <font isBold="true" size="10" color="#FFFFFF"/>
+                </textElement>
+                <text><![CDATA[Floor]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="210" y="0" width="120" height="35" backcolor="#4A90E2"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Center">
+                    <font isBold="true" size="10" color="#FFFFFF"/>
+                </textElement>
+                <text><![CDATA[Tenant]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="330" y="0" width="80" height="35" backcolor="#4A90E2"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Center">
+                    <font isBold="true" size="10" color="#FFFFFF"/>
+                </textElement>
+                <text><![CDATA[Date]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="410" y="0" width="70" height="35" backcolor="#4A90E2"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Center">
+                    <font isBold="true" size="10" color="#FFFFFF"/>
+                </textElement>
+                <text><![CDATA[Lease]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="480" y="0" width="70" height="35" backcolor="#4A90E2"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Center">
+                    <font isBold="true" size="10" color="#FFFFFF"/>
+                </textElement>
+                <text><![CDATA[Utility]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="550" y="0" width="65" height="35" backcolor="#4A90E2"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Center">
+                    <font isBold="true" size="10" color="#FFFFFF"/>
+                </textElement>
+                <text><![CDATA[Total]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="25">
+            <!-- Space Code -->
+            <textField>
+                <reportElement x="0" y="0" width="60" height="25"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Center"/>
+                <textFieldExpression><![CDATA[$F{space_code}]]></textFieldExpression>
+            </textField>
+
+            <!-- Space Type -->
+            <textField>
+                <reportElement x="60" y="0" width="80" height="25"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Center"/>
+                <textFieldExpression><![CDATA[$F{space_type}]]></textFieldExpression>
+            </textField>
+
+            <!-- Floor -->
+            <textField>
+                <reportElement x="140" y="0" width="70" height="25"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Center"/>
+                <textFieldExpression><![CDATA[$F{floor_number}]]></textFieldExpression>
+            </textField>
+
+            <!-- Tenant Name -->
+            <textField>
+                <reportElement x="210" y="0" width="120" height="25"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Center"/>
+                <textFieldExpression><![CDATA[$F{tenant_name}]]></textFieldExpression>
+            </textField>
+
+            <!-- Payment Date (formatted based on period) -->
+            <textField>
+                <reportElement x="330" y="0" width="80" height="25"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Center"/>
+                <textFieldExpression>
+                    <![CDATA[
+                    $P{PERIOD_TYPE}.equals("DAILY") ?
+                        new java.text.SimpleDateFormat("dd/MM/yyyy").format($F{payment_date}) :
+                    $P{PERIOD_TYPE}.equals("MONTHLY") ?
+                        new java.text.SimpleDateFormat("dd").format($F{payment_date}) :
+                    new java.text.SimpleDateFormat("MMM").format($F{payment_date})
+                    ]]>
+                </textFieldExpression>
+            </textField>
+
+            <!-- Lease Amount -->
+            <textField>
+                <reportElement x="410" y="0" width="70" height="25"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Right"/>
+                <textFieldExpression>
+                    <![CDATA[$F{lease_amount}.compareTo(java.math.BigDecimal.ZERO) > 0 ?
+                        new java.text.DecimalFormat("$#,##0.00").format($F{lease_amount}) : "-"]]>
+                </textFieldExpression>
+            </textField>
+
+            <!-- Utility Amount -->
+            <textField>
+                <reportElement x="480" y="0" width="70" height="25"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Right"/>
+                <textFieldExpression>
+                    <![CDATA[$F{utility_amount}.compareTo(java.math.BigDecimal.ZERO) > 0 ?
+                        new java.text.DecimalFormat("$#,##0.00").format($F{utility_amount}) : "-"]]>
+                </textFieldExpression>
+            </textField>
+
+            <!-- Total Amount -->
+            <textField>
+                <reportElement x="550" y="0" width="65" height="25"/>
+                <textElement verticalAlignment="Middle" horizontalAlignment="Right">
+                    <font isBold="true"/>
+                </textElement>
+                <textFieldExpression>
+                    <![CDATA[new java.text.DecimalFormat("$#,##0.00").format($F{total_amount})]]>
+                </textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <!-- Group by Space for Monthly and Yearly reports -->
+    <group name="SpaceGroup" isStartNewColumn="false" isStartNewPage="false">
+        <groupExpression><![CDATA[$F{space_code}]]></groupExpression>
+        <groupHeader>
+            <band height="30">
+                <printWhenExpression>
+                    <![CDATA[$P{PERIOD_TYPE}.equals("MONTHLY") || $P{PERIOD_TYPE}.equals("YEARLY")]]>
+                </printWhenExpression>
+                <rectangle>
+                    <reportElement x="0" y="0" width="615" height="30" backcolor="#F0F8FF"/>
+                </rectangle>
+                <textField>
+                    <reportElement x="10" y="5" width="300" height="20"/>
+                    <textElement verticalAlignment="Middle">
+                        <font isBold="true" size="12"/>
+                    </textElement>
+                    <textFieldExpression>
+                        <![CDATA["Space: " + $F{space_code} + " - " + $F{space_type} +
+                          " (Floor " + $F{floor_number} + ")"]]>
+                    </textFieldExpression>
+                </textField>
+                <textField>
+                    <reportElement x="400" y="5" width="200" height="20"/>
+                    <textElement verticalAlignment="Middle" horizontalAlignment="Right">
+                        <font isBold="true" size="11"/>
+                    </textElement>
+                    <textFieldExpression>
+                        <![CDATA["Monthly Rent: " +
+                          new java.text.DecimalFormat("$#,##0.00").format($F{space_price})]]>
+                    </textFieldExpression>
+                </textField>
+            </band>
+        </groupHeader>
+        <groupFooter>
+            <band height="30">
+                <printWhenExpression>
+                    <![CDATA[$P{PERIOD_TYPE}.equals("MONTHLY") || $P{PERIOD_TYPE}.equals("YEARLY")]]>
+                </printWhenExpression>
+                <staticText>
+                    <reportElement x="300" y="5" width="150" height="20"/>
+                    <textElement verticalAlignment="Middle" horizontalAlignment="Right">
+                        <font isBold="true"/>
+                    </textElement>
+                    <text><![CDATA[Space Total:]]></text>
+                </staticText>
+                <textField>
+                    <reportElement x="450" y="5" width="165" height="20"/>
+                    <textElement verticalAlignment="Middle" horizontalAlignment="Right">
+                        <font isBold="true"/>
+                    </textElement>
+                    <textFieldExpression>
+                        <![CDATA[
+                        new java.text.DecimalFormat("$#,##0.00").format(
+                            $F{lease_amount}.add($F{utility_amount})
+                        )
+                        ]]>
+                    </textFieldExpression>
+                </textField>
+                <line>
+                    <reportElement x="0" y="28" width="615" height="1"/>
+                </line>
+            </band>
+        </groupFooter>
+    </group>
+
+    <summary>
+        <band height="150">
+            <!-- Summary Section -->
+            <rectangle>
+                <reportElement x="0" y="0" width="615" height="120" backcolor="#F8F9FA"/>
+            </rectangle>
+
+            <staticText>
+                <reportElement x="10" y="10" width="150" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true" size="12"/>
+                </textElement>
+                <text><![CDATA[REPORT SUMMARY]]></text>
+            </staticText>
+
+            <line>
+                <reportElement x="10" y="35" width="595" height="1"/>
+                <graphicElement>
+                    <pen lineWidth="0.5"/>
+                </graphicElement>
+            </line>
+
+            <!-- Total Spaces -->
+            <staticText>
+                <reportElement x="10" y="45" width="150" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true"/>
+                </textElement>
+                <text><![CDATA[Total Spaces:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="160" y="45" width="50" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$V{space_count}]]></textFieldExpression>
+            </textField>
+
+            <!-- Total Lease Income -->
+            <staticText>
+                <reportElement x="10" y="70" width="150" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true"/>
+                </textElement>
+                <text><![CDATA[Total Lease Income:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="160" y="70" width="100" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true" size="11"/>
+                </textElement>
+                <textFieldExpression>
+                    <![CDATA[new java.text.DecimalFormat("$#,##0.00").format($V{total_lease})]]>
+                </textFieldExpression>
+            </textField>
+
+            <!-- Total Utility Income -->
+            <staticText>
+                <reportElement x="300" y="70" width="150" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true"/>
+                </textElement>
+                <text><![CDATA[Total Utility Income:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="450" y="70" width="100" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true" size="11"/>
+                </textElement>
+                <textFieldExpression>
+                    <![CDATA[new java.text.DecimalFormat("$#,##0.00").format($V{total_utility})]]>
+                </textFieldExpression>
+            </textField>
+
+            <!-- Grand Total -->
+            <staticText>
+                <reportElement x="10" y="95" width="150" height="25"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true" size="13"/>
+                </textElement>
+                <text><![CDATA[GRAND TOTAL:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="160" y="95" width="150" height="25"/>
+                <textElement verticalAlignment="Middle">
+                    <font isBold="true" size="14"/>
+                </textElement>
+                <textFieldExpression>
+                    <![CDATA[new java.text.DecimalFormat("$#,##0.00").format($V{grand_total})]]>
+                </textFieldExpression>
+            </textField>
+
+            <!-- Footer -->
+            <textField>
+                <reportElement x="0" y="125" width="615" height="15"/>
+                <textElement textAlignment="Center">
+                    <font size="9"/>
+                </textElement>
+                <textFieldExpression>
+                    <![CDATA["Generated on " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new java.util.Date())]]>
+                </textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>
