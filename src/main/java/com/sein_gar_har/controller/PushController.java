@@ -703,6 +703,7 @@ public class PushController {
                             pushService.send(notification);
                             sentCount++;
                             System.out.println("✅ Push sent to " + request.getRole() + " user: " + user.getEmail());
+                            System.out.println(" message sent to manager ");
                         } catch (Exception e) {
                             failedCount++;
                             System.err.println("❌ Failed to send to user " + user.getEmail() + ": " + e.getMessage());
@@ -728,6 +729,198 @@ public class PushController {
             e.printStackTrace();
             response.put("status", "error");
             response.put("message", "Failed to send notification to role: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    @PostMapping("/sendToRoles")
+    public ResponseEntity<Map<String, Object>> sendToRoles(@RequestBody RoleNotificationRequest request) {
+        System.out.println("🎯 REACHED sendToRoles ENDPOINT");
+        System.out.println("📊 Received request: " + request.toString());
+
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            // Validate required fields
+            if (request.getTitle() == null || request.getBody() == null || request.getRole() == null) {
+                response.put("status", "error");
+                response.put("message", "Missing required fields: title, body, or role");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            System.out.println("👥 Looking for users with role: " + request.getRole());
+            List<User> users = userService.findByRole(request.getRole());
+            System.out.println("👥 Found " + users.size() + " users with role: " + request.getRole());
+
+            if (users.isEmpty()) {
+                response.put("status", "warning");
+                response.put("message", "No users found with role: " + request.getRole());
+                return ResponseEntity.ok(response);
+            }
+
+            int sentCount = 0;
+            int webSocketCount = 0;
+            int pushMessageCount = 0;
+
+            PushService pushService = new PushService();
+            pushService.setPrivateKey(Utils.loadPrivateKey(privateKey));
+            pushService.setPublicKey(Utils.loadPublicKey(publicKey));
+            pushService.setSubject("mailto:admin@seingahar.com");
+
+            // Prepare JSON body with ALL fields
+            String jsonBody = String.format(
+                    "{" +
+                            "\"title\":\"%s\"," +
+                            "\"body\":\"%s\"," +
+                            "\"role\":\"%s\"," +
+                            "\"type\":\"%s\"," +
+                            "\"leaseId\":\"%s\"," +
+                            "\"spaceId\":\"%s\"," +
+                            "\"spaceCode\":\"%s\"," +
+                            "\"tenantName\":\"%s\"," +
+                            "\"tenantId\":\"%s\"," +
+                            "\"branchName\":\"%s\"," +
+                            "\"branchID\":\"%s\"," +
+                            "\"createdUserName\":\"%s\"," +
+                            "\"rentAmount\":\"%s\"," +
+                            "\"userToken\":\"%s\"," +
+                            "\"url\":\"/lease-management\"," +
+                            "\"icon\":\"/sgh.png\"," +
+                            "\"badge\":\"/sgh.png\"," +
+                            "\"timestamp\":\"%s\"" +
+                            "}",
+                    sanitize(request.getTitle()),
+                    sanitize(request.getBody()),
+                    sanitize(request.getRole()),
+                    sanitize(request.getType() != null ? request.getType() : "payment"),
+                    sanitize(request.getLeaseId() != null ? request.getLeaseId() : ""),
+                    sanitize(request.getSpaceId() != null ? request.getSpaceId() : ""),
+                    sanitize(request.getSpaceCode() != null ? request.getSpaceCode() : ""),
+                    sanitize(request.getTenantName() != null ? request.getTenantName() : ""),
+                    sanitize(request.getTenantId() != null ? request.getTenantId() : ""),
+                    sanitize(request.getBranchName() != null ? request.getBranchName() : ""),
+                    sanitize(request.getBranchID() != null ? request.getBranchID() : ""),
+                    sanitize(request.getCreatedUserName() != null ? request.getCreatedUserName() : ""),
+                    sanitize(request.getRentAmount() != null ? request.getRentAmount() : ""),
+                    sanitize(request.getUserToken() != null ? request.getUserToken() : ""),
+                    LocalDateTime.now().toString()
+            );
+
+            System.out.println("📤 JSON Body for push notification: " + jsonBody);
+
+            for (User user : users) {
+                try {
+                    System.out.println("👤 Processing user: " + user.getEmail() + " | Role: " + user.getRoles().toString());
+
+                    // Save push message for each user
+                    PushMessage message = new PushMessage();
+                    message.setMessage(request.getTitle() + " - " + request.getBody());
+                    message.setDateTime(LocalDateTime.now());
+                    message.setSentToAll(false);
+                    message.setRecipientUser(user);
+                    message.setType(request.getType() != null ? request.getType() : "payment");
+                    message.setLeaseId(request.getLeaseId());
+                    message.setSpaceCode(request.getSpaceCode());
+                    message.setTenantName(request.getTenantName());
+                    message.setRentAmount(request.getRentAmount());
+                    message.setCreatedUserName(request.getCreatedUserName());
+
+                    // Set branch if branchID provided
+                    if (request.getBranchID() != null && !request.getBranchID().isEmpty()) {
+                        try {
+                            Long branchId = Long.parseLong(request.getBranchID());
+                            Optional<Branch> branchOpt = branchRepository.findById(branchId);
+                            branchOpt.ifPresent(message::setBranch);
+                        } catch (NumberFormatException e) {
+                            System.err.println("Invalid branch ID format: " + request.getBranchID());
+                        }
+                    }
+
+                    // Set sender if provided
+                    if (request.getSentuserId() != null && !request.getSentuserId().isEmpty()) {
+                        try {
+                            UUID senderId = UUID.fromString(request.getSentuserId());
+                            userRepository.findById(senderId).ifPresent(message::setCreatedUserId);
+                        } catch (IllegalArgumentException e) {
+                            System.err.println("Invalid sender ID format: " + request.getSentuserId());
+                        }
+                    }
+
+                    PushMessage savedMessage = pushMessageService.save(message);
+                    pushMessageCount++;
+                    System.out.println("💾 Saved message ID: " + savedMessage.getId());
+
+                    // Send WebSocket notification
+                    Map<String, Object> wsMessage = new HashMap<>();
+                    wsMessage.put("id", savedMessage.getId());
+                    wsMessage.put("title", request.getTitle());
+                    wsMessage.put("body", request.getBody());
+                    wsMessage.put("message", request.getTitle() + " - " + request.getBody());
+                    wsMessage.put("dateTime", savedMessage.getDateTime());
+                    wsMessage.put("sentToAll", false);
+                    wsMessage.put("targetUserId", user.getId());
+                    wsMessage.put("notificationType", "ROLE_USERS");
+                    wsMessage.put("type", request.getType());
+                    wsMessage.put("leaseId", request.getLeaseId());
+                    wsMessage.put("spaceCode", request.getSpaceCode());
+                    wsMessage.put("tenantName", request.getTenantName());
+                    wsMessage.put("rentAmount", request.getRentAmount());
+                    wsMessage.put("createdUserName", request.getCreatedUserName());
+
+                    messagingTemplate.convertAndSend("/topic/notifications/" + user.getId(), wsMessage);
+                    webSocketCount++;
+                    System.out.println("📡 WebSocket sent to user: " + user.getEmail());
+
+                    // Send push notifications to user's subscriptions
+                    if (!user.getSubscriptions().isEmpty()) {
+                        for (SubscriptionEntity sub : user.getSubscriptions()) {
+                            try {
+                                nl.martijndwars.webpush.Notification notification =
+                                        new nl.martijndwars.webpush.Notification(
+                                                sub.getEndpoint(),
+                                                sub.getP256dh(),
+                                                sub.getAuth(),
+                                                jsonBody.getBytes("UTF-8")
+                                        );
+                                pushService.send(notification);
+                                sentCount++;
+                                System.out.println("✅ Push notification sent to: " + user.getEmail());
+                            } catch (Exception e) {
+                                System.err.println("❌ Failed to send push to " + user.getEmail() + ": " + e.getMessage());
+                            }
+                        }
+                    } else {
+                        System.out.println("ℹ️ User has no subscriptions: " + user.getEmail());
+                    }
+
+                    // Send WebSocket notification count update
+                    webSocketNotificationController.sendNotificationCountUpdate(user.getId());
+
+                } catch (Exception e) {
+                    System.err.println("❌ Error processing user " + user.getEmail() + ": " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+
+            response.put("status", "success");
+            response.put("message", "Notification sent successfully to " + users.size() + " " + request.getRole() + " users");
+            response.put("totalUsers", users.size());
+            response.put("pushMessagesSaved", pushMessageCount);
+            response.put("webSocketSent", webSocketCount);
+            response.put("pushNotificationsSent", sentCount);
+            response.put("role", request.getRole());
+
+            System.out.println("✅ sendToRoles completed successfully");
+            System.out.println("📊 Final response: " + response);
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            System.err.println("❌ CRITICAL ERROR in sendToRoles: " + e.getMessage());
+            e.printStackTrace();
+
+            response.put("status", "error");
+            response.put("message", "Failed to send notification: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }

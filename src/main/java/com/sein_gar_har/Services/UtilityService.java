@@ -1,4 +1,3 @@
-// UtilityService.java
 package com.sein_gar_har.Services;
 
 import com.sein_gar_har.dto.request.UtilityRequestDTO;
@@ -14,6 +13,10 @@ public interface UtilityService {
     List<UtilityResponseDTO> getAllUtilities();
     UtilityResponseDTO getUtilityById(Long id);
     List<UtilityResponseDTO> getUtilitiesBySpaceId(UUID spaceId);
+
+    // ✅ ADDED: Get utilities by tenant ID
+    List<UtilityResponseDTO> getUtilitiesByTenantId(UUID tenantId);
+
     UtilityResponseDTO updateUtility(Long id, UtilityUpdateRequestDTO utilityUpdateRequestDTO);
     boolean deleteUtility(Long id);
 
@@ -21,4 +24,7 @@ public interface UtilityService {
     boolean markAsPaid(Long utilityId);
     BigDecimal getTotalPendingAmountBySpaceId(UUID spaceId);
     List<UtilityResponseDTO> getPendingUtilitiesBySpaceId(UUID spaceId);
+
+    // ✅ ADDED: Get total pending amount by tenant ID
+    BigDecimal getTotalPendingAmountByTenantId(UUID tenantId);
 }

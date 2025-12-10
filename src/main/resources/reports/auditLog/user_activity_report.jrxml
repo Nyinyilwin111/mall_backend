@@ -1,0 +1,410 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+              http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="user_activity_report"
+              pageWidth="842"
+              pageHeight="595"
+              orientation="Landscape"
+              columnWidth="802"
+              leftMargin="20"
+              rightMargin="20"
+              topMargin="20"
+              bottomMargin="20">
+
+    <property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
+
+    <!-- Parameters -->
+    <parameter name="REPORT_TITLE" class="java.lang.String"/>
+    <parameter name="START_DATE" class="java.sql.Timestamp"/>
+    <parameter name="END_DATE" class="java.sql.Timestamp"/>
+    <parameter name="USERNAME" class="java.lang.String"/>
+    <parameter name="TOTAL_ACTIONS" class="java.lang.Integer"/>
+    <parameter name="COMPANY_NAME" class="java.lang.String" isForPrompting="false">
+        <defaultValueExpression><![CDATA["SEIN GAY HAR"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="COMPANY_LOGO" class="java.io.InputStream" isForPrompting="false"/>
+    <parameter name="REPORT_DATE" class="java.util.Date" isForPrompting="false">
+        <defaultValueExpression><![CDATA[new java.util.Date()]]></defaultValueExpression>
+    </parameter>
+    <parameter name="GENERATED_BY" class="java.lang.String" isForPrompting="false">
+        <defaultValueExpression><![CDATA["Audit System"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="REPORT_ID" class="java.lang.String" isForPrompting="false">
+        <defaultValueExpression><![CDATA["ACT-AUD-" + new java.text.SimpleDateFormat("yyyyMMddHHmmss").format(new java.util.Date())]]></defaultValueExpression>
+    </parameter>
+
+    <queryString>
+        <![CDATA[
+        SELECT
+            logId,
+            action,
+            tableAffected,
+            recordId,
+            oldValues,
+            newValues,
+            ipAddress,
+            userAgent,
+            timestamp,
+            performedBy,
+            userFriendlyMessage
+        FROM auditlog.auditlog
+        WHERE performedBy = $P{USERNAME}
+            AND timestamp BETWEEN $P{START_DATE} AND $P{END_DATE}
+        ORDER BY timestamp DESC
+        ]]>
+    </queryString>
+
+    <field name="logId" class="java.lang.String"/>
+    <field name="action" class="java.lang.String"/>
+    <field name="tableAffected" class="java.lang.String"/>
+    <field name="recordId" class="java.lang.String"/>
+    <field name="oldValues" class="java.lang.String"/>
+    <field name="newValues" class="java.lang.String"/>
+    <field name="ipAddress" class="java.lang.String"/>
+    <field name="userAgent" class="java.lang.String"/>
+    <field name="timestamp" class="java.sql.Timestamp"/>
+    <field name="performedBy" class="java.lang.String"/>
+    <field name="userFriendlyMessage" class="java.lang.String"/>
+
+    <!-- Variables -->
+    <variable name="totalRecords" class="java.lang.Integer" calculation="Count">
+        <variableExpression><![CDATA[$F{logId}]]></variableExpression>
+    </variable>
+
+    <!-- Title Band -->
+    <title>
+        <band height="160" splitType="Stretch">
+            <!-- Header Background -->
+            <rectangle radius="8">
+                <reportElement x="0" y="0" width="802" height="130" backcolor="#2C3E50"/>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#2C3E50"/>
+                </graphicElement>
+            </rectangle>
+
+            <!-- Logo -->
+            <image scaleImage="RetainShape" onErrorType="Blank">
+                <reportElement x="20" y="25" width="60" height="60"/>
+                <imageExpression><![CDATA["classpath:image/SGH-logo.png"]]></imageExpression>
+            </image>
+
+            <!-- Company Name -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="100" y="25" width="350" height="25" forecolor="#FFFFFF"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="16" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{COMPANY_NAME}]]></textFieldExpression>
+            </textField>
+
+            <!-- Report Title -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="100" y="55" width="350" height="20" forecolor="#ECF0F1"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="12"/>
+                </textElement>
+                <textFieldExpression><![CDATA["USER ACTIVITY AUDIT REPORT"]]></textFieldExpression>
+            </textField>
+
+            <!-- User Info -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="100" y="80" width="350" height="30" forecolor="#BDC3C7"/>
+                <textElement textAlignment="Left" verticalAlignment="Top">
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                    "User: " + $P{USERNAME} +
+                    " | Period: " +
+                    new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format($P{START_DATE}) +
+                    " to " +
+                    new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format($P{END_DATE})
+                ]]></textFieldExpression>
+            </textField>
+
+            <!-- Report Date -->
+            <textField pattern="EEE, MMM dd, yyyy">
+                <reportElement x="650" y="25" width="132" height="20" forecolor="#ECF0F1"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{REPORT_DATE}]]></textFieldExpression>
+            </textField>
+
+            <!-- Generated by -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="650" y="50" width="132" height="18" forecolor="#BDC3C7"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA["By: " + $P{GENERATED_BY}]]></textFieldExpression>
+            </textField>
+
+            <!-- Report ID -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="650" y="73" width="132" height="15" forecolor="#95A5A6"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA["ID: " + $P{REPORT_ID}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <!-- Column Header -->
+    <columnHeader>
+        <band height="45" splitType="Stretch">
+            <!-- Table Header Background -->
+            <rectangle radius="5">
+                <reportElement x="0" y="0" width="802" height="40" backcolor="#34495E"/>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#34495E"/>
+                </graphicElement>
+            </rectangle>
+
+            <!-- Column Headers -->
+            <staticText>
+                <reportElement x="5" y="10" width="130" height="25" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Timestamp]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="140" y="10" width="80" height="25" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Action]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="225" y="10" width="100" height="25" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Table]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="330" y="10" width="90" height="25" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Record ID]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="425" y="10" width="120" height="25" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[IP Address]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="550" y="10" width="120" height="25" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[User Agent]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="675" y="10" width="122" height="25" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Details]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <!-- Detail -->
+    <detail>
+        <band height="40" splitType="Stretch">
+            <!-- Alternating row background -->
+            <rectangle>
+                <reportElement x="0" y="0" width="802" height="35" mode="Opaque" backcolor="#F8F9FA">
+                    <printWhenExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></printWhenExpression>
+                </reportElement>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#F8F9FA"/>
+                </graphicElement>
+            </rectangle>
+
+            <!-- Timestamp -->
+            <textField pattern="yyyy-MM-dd HH:mm:ss">
+                <reportElement x="5" y="5" width="130" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{timestamp}]]></textFieldExpression>
+            </textField>
+
+            <!-- Action with colored badge -->
+            <rectangle radius="6">
+                <reportElement x="140" y="5" width="80" height="20" mode="Opaque">
+                    <printWhenExpression><![CDATA[$F{action} != null]]></printWhenExpression>
+                </reportElement>
+                <graphicElement>
+                    <pen lineWidth="0.5" lineColor="#DEE2E6"/>
+                </graphicElement>
+            </rectangle>
+            <textField isBlankWhenNull="true">
+                <reportElement x="140" y="5" width="80" height="20">
+                    <printWhenExpression><![CDATA[$F{action} != null]]></printWhenExpression>
+                </reportElement>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="8" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{action}]]></textFieldExpression>
+            </textField>
+
+            <!-- Table -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="225" y="5" width="100" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{tableAffected}]]></textFieldExpression>
+            </textField>
+
+            <!-- Record ID -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="330" y="5" width="90" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{recordId}]]></textFieldExpression>
+            </textField>
+
+            <!-- IP Address -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="425" y="5" width="120" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{ipAddress}]]></textFieldExpression>
+            </textField>
+
+            <!-- User Agent -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="550" y="5" width="120" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                    $F{userAgent} != null ?
+                    (($F{userAgent}.length() > 25) ?
+                     $F{userAgent}.substring(0, 25) + "..." : $F{userAgent}) :
+                    "Unknown"
+                ]]></textFieldExpression>
+            </textField>
+
+            <!-- Details -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="675" y="5" width="122" height="20"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                    $F{userFriendlyMessage} != null ?
+                    (($F{userFriendlyMessage}.length() > 30) ?
+                     $F{userFriendlyMessage}.substring(0, 30) + "..." : $F{userFriendlyMessage}) :
+                    $F{action} + " on " + $F{tableAffected}
+                ]]></textFieldExpression>
+            </textField>
+
+            <!-- Bottom border -->
+            <line>
+                <reportElement x="0" y="34" width="802" height="1"/>
+                <graphicElement>
+                    <pen lineWidth="0.5" lineColor="#E9ECEF"/>
+                </graphicElement>
+            </line>
+        </band>
+    </detail>
+
+    <!-- Page Footer -->
+    <pageFooter>
+        <band height="40" splitType="Stretch">
+            <!-- Confidential watermark -->
+            <textField>
+                <reportElement x="0" y="5" width="802" height="15" forecolor="#D1D5DB"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="7"/>
+                </textElement>
+                <textFieldExpression><![CDATA["CONFIDENTIAL - Audit Trail Document"]]></textFieldExpression>
+            </textField>
+
+            <!-- Page counter -->
+            <textField>
+                <reportElement x="0" y="20" width="400" height="15"/>
+                <textElement textAlignment="Left">
+                    <font fontName="DejaVu Sans" size="8" isItalic="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " of " + $V{PAGE_COUNT}]]></textFieldExpression>
+            </textField>
+
+            <!-- Time stamp -->
+            <textField pattern="HH:mm:ss">
+                <reportElement x="402" y="20" width="400" height="15"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="8" isItalic="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <!-- Summary -->
+    <summary>
+        <band height="80" splitType="Stretch">
+            <!-- Summary Background -->
+            <rectangle radius="5">
+                <reportElement x="0" y="0" width="802" height="70" backcolor="#2C3E50"/>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#2C3E50"/>
+                </graphicElement>
+            </rectangle>
+
+            <!-- Statistics -->
+            <textField evaluationTime="Report">
+                <reportElement x="20" y="15" width="180" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Total Activities: " + $V{totalRecords}]]></textFieldExpression>
+            </textField>
+
+            <textField evaluationTime="Report">
+                <reportElement x="20" y="40" width="180" height="20" forecolor="#BDC3C7"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA["User: " + $P{USERNAME}]]></textFieldExpression>
+            </textField>
+
+            <!-- Total Actions Parameter -->
+            <textField evaluationTime="Report">
+                <reportElement x="210" y="15" width="200" height="20" forecolor="#FFFFFF"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Reported Total: " + $P{TOTAL_ACTIONS}]]></textFieldExpression>
+            </textField>
+
+            <!-- Report Generation Time -->
+            <textField pattern="EEE, MMM dd, yyyy HH:mm:ss">
+                <reportElement x="590" y="15" width="192" height="20" forecolor="#BDC3C7"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>

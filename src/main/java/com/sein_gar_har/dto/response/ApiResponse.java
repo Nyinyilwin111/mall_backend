@@ -1,7 +1,5 @@
 package com.sein_gar_har.dto.response;
 
-
-
 import lombok.Data;
 import java.time.LocalDateTime;
 

@@ -52,6 +52,16 @@ public class SecurityConfig {
                         .requestMatchers("/api/utilities/**").permitAll()
                         .requestMatchers("/api/payments/**").permitAll()
 
+                        // Explicitly allow ALL report endpoints
+                        .requestMatchers("/api/reports/**").permitAll()
+                        .requestMatchers("/api/reports/branches/**").permitAll()
+                        .requestMatchers("/api/reports/branchesIncome/**").permitAll()
+                        .requestMatchers("/api/reports/branches/health").permitAll()
+                        .requestMatchers("/api/reports/branches/list").permitAll()
+                        .requestMatchers("/api/reports/branches/analytics").permitAll()
+                        .requestMatchers("/api/reports/branches/*/detail").permitAll()
+                        .requestMatchers("/api/reports/branches/*/users").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthorizationFilter, BasicAuthenticationFilter.class)

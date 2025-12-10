@@ -1,0 +1,548 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+              http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="invoice_report"
+              pageWidth="595"
+              pageHeight="842"
+              columnWidth="555"
+              leftMargin="20"
+              rightMargin="20"
+              topMargin="20"
+              bottomMargin="20"
+              uuid="7b8d4a5c-9e3a-4b8d-9c7a-1e8f5d6c3b2a">
+
+    <property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
+
+    <!-- Parameters MUST BE BEFORE fields -->
+    <parameter name="COMPANY_NAME" class="java.lang.String" isForPrompting="false">
+        <defaultValueExpression><![CDATA[$P{companyName}]]></defaultValueExpression>
+    </parameter>
+    <parameter name="COMPANY_LOGO" class="java.io.InputStream" isForPrompting="false"/>
+    <parameter name="REPORT_DATE" class="java.util.Date" isForPrompting="false">
+        <defaultValueExpression><![CDATA[new java.util.Date()]]></defaultValueExpression>
+    </parameter>
+    <parameter name="GENERATED_BY" class="java.lang.String" isForPrompting="false">
+        <defaultValueExpression><![CDATA["System Administrator"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="REPORT_ID" class="java.lang.String" isForPrompting="false">
+        <defaultValueExpression><![CDATA[$P{invoiceNumber} != null ? "INV-" + $P{invoiceNumber} : "INVOICE-REPORT"]]></defaultValueExpression>
+    </parameter>
+
+    <!-- Original Parameters -->
+    <parameter name="companyName" class="java.lang.String"/>
+    <parameter name="companyAddress" class="java.lang.String"/>
+    <parameter name="companyPhone" class="java.lang.String"/>
+    <parameter name="companyEmail" class="java.lang.String"/>
+    <parameter name="invoiceNumber" class="java.lang.String"/>
+    <parameter name="invoiceDate" class="java.lang.String"/>
+    <parameter name="paymentDate" class="java.lang.String"/>
+    <parameter name="leaseNumber" class="java.lang.String"/>
+    <parameter name="tenantName" class="java.lang.String"/>
+    <parameter name="contactPhone" class="java.lang.String"/>
+    <parameter name="address" class="java.lang.String"/>
+    <parameter name="roomNumber" class="java.lang.String"/>
+    <parameter name="propertyAddress" class="java.lang.String"/>
+    <parameter name="rentAmount" class="java.math.BigDecimal"/>
+    <parameter name="utilityType" class="java.lang.String"/>
+    <parameter name="utilityDescription" class="java.lang.String"/>
+    <parameter name="meterReading" class="java.lang.String"/>
+    <parameter name="ratePerUnit" class="java.math.BigDecimal"/>
+    <parameter name="paymentTerms" class="java.lang.String"/>
+    <parameter name="notes" class="java.lang.String"/>
+
+    <!-- IMPORTANT: Query to define fields -->
+    <queryString>
+        <![CDATA[SELECT 1 as dummy]]>
+    </queryString>
+
+    <!-- Define fields that will come from data source -->
+    <field name="paymentId" class="java.lang.Long"/>
+    <field name="paymentAmount" class="java.math.BigDecimal"/>
+    <field name="paymentMethod" class="java.lang.String"/>
+    <field name="paymentStatus" class="java.lang.String"/>
+    <field name="subtotal" class="java.math.BigDecimal"/>
+    <field name="taxRate" class="java.math.BigDecimal"/>
+    <field name="taxAmount" class="java.math.BigDecimal"/>
+    <field name="totalAmount" class="java.math.BigDecimal"/>
+
+    <!-- Title -->
+    <title>
+        <band height="150" splitType="Stretch">
+            <!-- Header Background -->
+            <rectangle radius="8">
+                <reportElement x="0" y="0" width="555" height="120" backcolor="#2C3E50"/>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#2C3E50"/>
+                </graphicElement>
+            </rectangle>
+
+            <!-- Logo -->
+            <image scaleImage="RetainShape" onErrorType="Blank">
+                <reportElement x="20" y="25" width="60" height="60"/>
+                <imageExpression><![CDATA["classpath:image/SGH-logo.png"]]></imageExpression>
+            </image>
+
+            <!-- Company Name -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="100" y="25" width="300" height="25" forecolor="#FFFFFF"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="16" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{companyName}]]></textFieldExpression>
+            </textField>
+
+            <!-- Company Contact Info -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="100" y="55" width="300" height="40" forecolor="#ECF0F1"/>
+                <textElement textAlignment="Left" verticalAlignment="Top">
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                    ($P{companyAddress} != null && !$P{companyAddress}.isEmpty() ? $P{companyAddress} + "\n" : "") +
+                    ($P{companyPhone} != null && !$P{companyPhone}.isEmpty() ? "Phone: " + $P{companyPhone} + " | " : "") +
+                    ($P{companyEmail} != null && !$P{companyEmail}.isEmpty() ? "Email: " + $P{companyEmail} : "")
+                ]]></textFieldExpression>
+            </textField>
+
+            <!-- Invoice Title -->
+            <textField>
+                <reportElement x="420" y="40" width="130" height="25" forecolor="#FFFFFF"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="20" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["INVOICE"]]></textFieldExpression>
+            </textField>
+
+            <!-- Report ID -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="420" y="70" width="130" height="15" forecolor="#95A5A6"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA["ID: " + $P{REPORT_ID}]]></textFieldExpression>
+            </textField>
+
+            <!-- Generated by -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="420" y="90" width="130" height="18" forecolor="#BDC3C7"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Generated by: " + $P{GENERATED_BY}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <!-- Page Header -->
+    <pageHeader>
+        <band height="80" splitType="Stretch">
+            <!-- Invoice Details Card -->
+            <rectangle radius="5">
+                <reportElement x="0" y="0" width="555" height="75" backcolor="#F8F9FA"/>
+                <graphicElement>
+                    <pen lineWidth="0.5" lineColor="#E9ECEF"/>
+                </graphicElement>
+            </rectangle>
+
+            <!-- Invoice Details Grid -->
+            <staticText>
+                <reportElement x="20" y="10" width="100" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Invoice Number:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="120" y="10" width="150" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{invoiceNumber}]]></textFieldExpression>
+            </textField>
+
+            <staticText>
+                <reportElement x="20" y="35" width="100" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Invoice Date:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="120" y="35" width="150" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{invoiceDate}]]></textFieldExpression>
+            </textField>
+
+            <staticText>
+                <reportElement x="300" y="10" width="100" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Payment ID:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="400" y="10" width="135" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{paymentId}]]></textFieldExpression>
+            </textField>
+
+            <staticText>
+                <reportElement x="300" y="35" width="100" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Payment Date:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="400" y="35" width="135" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{paymentDate}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageHeader>
+
+    <!-- Column Header -->
+    <columnHeader>
+        <band height="80" splitType="Stretch">
+            <!-- Customer Information Card -->
+            <rectangle radius="5">
+                <reportElement x="0" y="0" width="270" height="75" backcolor="#F8F9FA"/>
+                <graphicElement>
+                    <pen lineWidth="0.5" lineColor="#E9ECEF"/>
+                </graphicElement>
+            </rectangle>
+
+            <staticText>
+                <reportElement x="15" y="10" width="100" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Bill To:]]></text>
+            </staticText>
+
+            <textField>
+                <reportElement x="15" y="30" width="240" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{tenantName}]]></textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="15" y="50" width="240" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                    ($P{address} != null ? $P{address} + "\n" : "") +
+                    ($P{contactPhone} != null ? "Phone: " + $P{contactPhone} : "")
+                ]]></textFieldExpression>
+            </textField>
+
+            <!-- Payment Information Card -->
+            <rectangle radius="5">
+                <reportElement x="285" y="0" width="270" height="75" backcolor="#F8F9FA"/>
+                <graphicElement>
+                    <pen lineWidth="0.5" lineColor="#E9ECEF"/>
+                </graphicElement>
+            </rectangle>
+
+            <staticText>
+                <reportElement x="300" y="10" width="100" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Payment Details:]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="300" y="30" width="80" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <text><![CDATA[Lease:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="380" y="30" width="165" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{leaseNumber} + " - Room: " + $P{roomNumber}]]></textFieldExpression>
+            </textField>
+
+            <staticText>
+                <reportElement x="300" y="50" width="80" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <text><![CDATA[Method:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="380" y="50" width="165" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{paymentMethod}]]></textFieldExpression>
+            </textField>
+        </band>
+    </columnHeader>
+
+    <!-- Detail -->
+    <detail>
+        <band height="140" splitType="Stretch">
+            <!-- Payment Items Header -->
+            <staticText>
+                <reportElement x="0" y="0" width="555" height="25"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="14" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Payment Details]]></text>
+            </staticText>
+
+            <!-- Payment Items Table Header -->
+            <rectangle radius="5">
+                <reportElement x="0" y="30" width="555" height="30" backcolor="#34495E"/>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#34495E"/>
+                </graphicElement>
+            </rectangle>
+
+            <staticText>
+                <reportElement x="15" y="35" width="200" height="20" forecolor="#FFFFFF"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Description]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="400" y="35" width="140" height="20" forecolor="#FFFFFF"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Amount]]></text>
+            </staticText>
+
+            <!-- Payment Items Content -->
+            <rectangle radius="5">
+                <reportElement x="0" y="65" width="555" height="40" backcolor="#F8F9FA"/>
+                <graphicElement>
+                    <pen lineWidth="0.5" lineColor="#E9ECEF"/>
+                </graphicElement>
+            </rectangle>
+
+            <textField>
+                <reportElement x="15" y="70" width="350" height="30"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11"/>
+                </textElement>
+                <textFieldExpression>
+                    <![CDATA[
+                        $F{paymentMethod} != null && $F{paymentMethod}.equals("LEASE")
+                        ? "Rent Payment for Lease " + $P{leaseNumber}
+                        : "Utility Payment: " + ($P{utilityType} != null ? $P{utilityType} : "Utility")
+                    ]]>
+                </textFieldExpression>
+            </textField>
+
+            <textField>
+                <reportElement x="400" y="70" width="140" height="30"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="12" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["MMK " + ($F{paymentAmount} != null ? $F{paymentAmount}.toString() : "0.00")]]></textFieldExpression>
+            </textField>
+
+            <!-- Utility details (if applicable) -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="15" y="110" width="525" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="9" isItalic="true"/>
+                </textElement>
+                <textFieldExpression>
+                    <![CDATA[
+                        $P{utilityType} != null && !$P{utilityType}.isEmpty()
+                        ? "Details: " + $P{utilityDescription} + " | Meter Reading: " + $P{meterReading} + " | Rate: MMK " + $P{ratePerUnit} + " per unit"
+                        : ""
+                    ]]>
+                </textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <!-- Column Footer -->
+    <columnFooter>
+        <band height="0"/>
+    </columnFooter>
+
+    <!-- Page Footer -->
+    <pageFooter>
+        <band height="50" splitType="Stretch">
+            <!-- Confidential watermark -->
+            <textField>
+                <reportElement x="0" y="5" width="555" height="15" forecolor="#D1D5DB"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="7"/>
+                </textElement>
+                <textFieldExpression><![CDATA["CONFIDENTIAL - For Internal Use Only"]]></textFieldExpression>
+            </textField>
+
+            <!-- Page counter -->
+            <textField>
+                <reportElement x="0" y="25" width="275" height="15"/>
+                <textElement textAlignment="Left">
+                    <font fontName="DejaVu Sans" size="8" isItalic="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " of " + $V{PAGE_COUNT}]]></textFieldExpression>
+            </textField>
+
+            <!-- Generation timestamp -->
+            <textField pattern="HH:mm:ss">
+                <reportElement x="280" y="25" width="275" height="15"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="8" isItalic="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <!-- Summary -->
+    <!-- Summary -->
+    <summary>
+        <band height="250" splitType="Stretch">
+            <!-- Status Badge -->
+            <rectangle radius="8">
+                <reportElement x="350" y="0" width="205" height="40" backcolor="#4CAF50"/>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#4CAF50"/>
+                </graphicElement>
+            </rectangle>
+
+            <textField>
+                <reportElement x="350" y="0" width="205" height="40"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="14" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{paymentStatus} != null ? $F{paymentStatus}.toUpperCase() : "UNKNOWN"]]></textFieldExpression>
+            </textField>
+
+            <!-- Totals Section -->
+            <rectangle radius="5">
+                <reportElement x="0" y="100" width="555" height="120" backcolor="#F8F9FA"/>
+                <graphicElement>
+                    <pen lineWidth="0.5" lineColor="#E9ECEF"/>
+                </graphicElement>
+            </rectangle>
+
+            <!-- Subtotal - Using FIELD -->
+            <staticText>
+                <reportElement x="350" y="110" width="150" height="25"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="12"/>
+                </textElement>
+                <text><![CDATA[Subtotal:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="450" y="110" width="90" height="25"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="12"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                $F{subtotal}.toString()
+            ]]></textFieldExpression>
+            </textField>
+
+            <!-- Tax -->
+            <staticText>
+                <reportElement x="350" y="135" width="150" height="25"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="12"/>
+                </textElement>
+                <text><![CDATA[Tax (]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="395" y="135" width="50" height="25"/>
+                <textElement textAlignment="Left">
+                    <font fontName="DejaVu Sans" size="12"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                $F{taxRate} != null ? $F{taxRate}.toString() + "%):" : "0%):"
+            ]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="450" y="135" width="90" height="25"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="12"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                $F{taxAmount} + $F{subtotal}.toString()
+            ]]></textFieldExpression>
+            </textField>
+
+            <!-- Total Separator -->
+            <line>
+                <reportElement x="350" y="165" width="190" height="1"/>
+                <graphicElement>
+                    <pen lineWidth="1.0" lineColor="#000000"/>
+                </graphicElement>
+            </line>
+
+            <!-- Total -->
+            <staticText>
+                <reportElement x="350" y="170" width="150" height="30"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="14" isBold="true"/>
+                </textElement>
+                <text><![CDATA[TOTAL:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="440" y="170" width="90" height="30"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="14" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                $F{totalAmount}
+            ]]></textFieldExpression>
+            </textField>
+
+            <!-- Payment Terms and Notes -->
+            <staticText>
+                <reportElement x="15" y="230" width="100" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Payment Terms:]]></text>
+            </staticText>
+            <textField isBlankWhenNull="true">
+                <reportElement x="120" y="230" width="430" height="20"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{paymentTerms}]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+
+    <!-- No Data Section (required by schema) -->
+    <noData>
+        <band height="100">
+            <staticText>
+                <reportElement x="0" y="0" width="555" height="100"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font size="14" isBold="true"/>
+                </textElement>
+                <text><![CDATA[No Data Available]]></text>
+            </staticText>
+        </band>
+    </noData>
+
+</jasperReport>

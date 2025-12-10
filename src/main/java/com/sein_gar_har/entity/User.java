@@ -34,6 +34,9 @@ public class User {
 
     private boolean enabled = true;
 
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
     // this is subscriptions entity mapping
     @Builder.Default
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
@@ -50,8 +53,6 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private Set<Role> roles = new HashSet<>();
-
-    // this is image entity mapping
 
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "image_id")
@@ -72,6 +73,14 @@ public class User {
         this.password = password;
         this.email = email;
         this.enabled = true;
+    }
+
+    public String getAvatarUrl() {
+        // Return profileImage URL if exists, otherwise return direct avatarUrl
+        if (profileImage != null && profileImage.getImageUrl() != null) {
+            return profileImage.getImageUrl();
+        }
+        return avatarUrl;
     }
 
     // Utility methods

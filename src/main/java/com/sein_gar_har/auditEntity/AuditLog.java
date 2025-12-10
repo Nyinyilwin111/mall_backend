@@ -10,6 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Data
+@Table(name = "auditlog")
 public class AuditLog {
 
     @Id
@@ -30,10 +31,64 @@ public class AuditLog {
     private String ipAddress;
     private String userAgent;
     private LocalDateTime timestamp;
-
-    // Add these new fields for user-friendly messages
-    private String performedBy; // Who performed the action (username/email)
+    private String performedBy;
 
     @Column(columnDefinition = "TEXT")
-    private String userFriendlyMessage; // Formatted message for frontend
+    private String userFriendlyMessage;
+
+    // Helper methods for reporting
+    public String getFormattedTimestamp() {
+        return timestamp != null ? timestamp.toString() : "N/A";
+    }
+
+    public String getActionType() {
+        if (action == null) return "UNKNOWN";
+        return switch (action.toUpperCase()) {
+            case "CREATE" -> "Creation";
+            case "UPDATE" -> "Modification";
+            case "DELETE" -> "Deletion";
+            case "LOGIN" -> "Login Attempt";
+            default -> action;
+        };
+    }
+
+    public boolean isLoginAction() {
+        return "LOGIN".equalsIgnoreCase(action);
+    }
+
+    public boolean isRoleChange() {
+        return "UPDATE".equalsIgnoreCase(action) &&
+                ("User".equalsIgnoreCase(tableAffected) ||
+                        (newValues != null && newValues.contains("roles")));
+    }
+
+    public String getStatusFromLogin() {
+        if (!isLoginAction() || newValues == null) return "N/A";
+        try {
+            if (newValues.contains("\"status\":\"SUCCESS\"")) return "SUCCESS";
+            if (newValues.contains("\"status\":\"FAILED\"")) return "FAILED";
+        } catch (Exception e) {
+            // Ignore parsing errors
+        }
+        return "UNKNOWN";
+    }
+
+    public String getExtractedEmail() {
+        if (newValues != null && newValues.contains("\"email\":")) {
+            return newValues.replaceAll(".*\"email\":\"([^\"]+)\".*", "$1");
+        }
+        return "Unknown User";
+    }
+
+    public String getLoginStatus() {
+        return getStatusFromLogin();
+    }
+
+    public String getShortUserAgent() {
+        if (userAgent == null) return "";
+        if (userAgent.length() > 50) {
+            return userAgent.substring(0, 47) + "...";
+        }
+        return userAgent;
+    }
 }

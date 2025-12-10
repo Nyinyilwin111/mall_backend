@@ -12,8 +12,10 @@ import com.sein_gar_har.exception.ChatException;
 import com.sein_gar_har.exception.UserException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,8 +27,14 @@ import java.util.UUID;
 @RequestMapping("/api/chats")
 public class ChatController {
 
-    private final UserService userService;
-    private final ChatService chatService;
+    @Autowired
+    UserService userService;
+
+    @Autowired
+    ChatService chatService;
+
+    @Autowired
+    SimpMessagingTemplate messagingTemplate;
 
     @PostMapping("/single")
     public ResponseEntity<ChatDTO> createSingleChat(@RequestBody UUID userId,
@@ -107,14 +115,39 @@ public class ChatController {
         return new ResponseEntity<>(ChatDTO.fromChat(chat), HttpStatus.OK);
     }
 
+//    @DeleteMapping("/delete/{id}")
+//    public ResponseEntity<ApiResponseDTO> deleteChat(@PathVariable UUID id,
+//                                                     @RequestHeader(JwtConstants.TOKEN_HEADER) String jwt)
+//            throws UserException, ChatException {
+//
+//        User user = userService.findUserByProfile(jwt);
+//        chatService.deleteChat(id, user.getId());
+//        log.info("User {} deleted chat: {}", user.getEmail(), id);
+//
+//        ApiResponseDTO res = ApiResponseDTO.builder()
+//                .message("Chat deleted successfully")
+//                .status(true)
+//                .build();
+//
+//        return new ResponseEntity<>(res, HttpStatus.OK);
+//    }
+
+
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<ApiResponseDTO> deleteChat(@PathVariable UUID id,
                                                      @RequestHeader(JwtConstants.TOKEN_HEADER) String jwt)
             throws UserException, ChatException {
 
         User user = userService.findUserByProfile(jwt);
+        Chat chat = chatService.findChatById(id);
+
         chatService.deleteChat(id, user.getId());
-        log.info("User {} deleted chat: {}", user.getEmail(), id);
+
+        // Build DTO and broadcast
+        ChatDTO chatDTO = ChatDTO.fromChat(chat);
+        chat.getUsers().forEach(u -> {
+            messagingTemplate.convertAndSend("/topic/chat-removed/" + u.getId(), chatDTO);
+        });
 
         ApiResponseDTO res = ApiResponseDTO.builder()
                 .message("Chat deleted successfully")
@@ -122,6 +155,27 @@ public class ChatController {
                 .build();
 
         return new ResponseEntity<>(res, HttpStatus.OK);
+    }
+
+    @PutMapping("/{chatId}/rename")
+    public ResponseEntity<ChatDTO> renameGroup(@PathVariable UUID chatId, @RequestBody String groupName,
+                                               @RequestHeader(JwtConstants.TOKEN_HEADER) String jwt)
+            throws UserException, ChatException {
+
+        User user = userService.findUserByProfile(jwt);
+        String sanitized = stripSurroundingQuotes(groupName);
+        Chat chat = chatService.renameGroup(chatId, sanitized, user);
+        log.info("User {} renamed group chat {} to {}", user.getEmail(), chatId, sanitized);
+        return new ResponseEntity<>(ChatDTO.fromChat(chat), HttpStatus.OK);
+    }
+
+    private String stripSurroundingQuotes(String s) {
+        if (s == null) return null;
+        String trimmed = s.trim();
+        if ((trimmed.startsWith("\"") && trimmed.endsWith("\"")) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+            return trimmed.substring(1, trimmed.length() - 1).trim();
+        }
+        return trimmed;
     }
 
 }

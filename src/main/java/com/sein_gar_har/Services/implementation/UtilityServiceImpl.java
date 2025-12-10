@@ -1,7 +1,9 @@
 package com.sein_gar_har.Services.implementation;
 
+import com.sein_gar_har.RepositoryMain.LeaseRepository;
 import com.sein_gar_har.RepositoryMain.SpaceRepository;
 import com.sein_gar_har.RepositoryMain.UtilityRepository;
+import com.sein_gar_har.RepositoryMain.UserRepository;
 import com.sein_gar_har.Services.UtilityService;
 import com.sein_gar_har.Services.AuditLogService;
 import com.sein_gar_har.dto.request.UtilityRequestDTO;
@@ -9,6 +11,8 @@ import com.sein_gar_har.dto.request.UtilityUpdateRequestDTO;
 import com.sein_gar_har.dto.response.UtilityResponseDTO;
 import com.sein_gar_har.entity.Space;
 import com.sein_gar_har.entity.Utility;
+import com.sein_gar_har.entity.User;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -35,14 +39,61 @@ public class UtilityServiceImpl implements UtilityService {
     @Autowired
     private SpaceRepository spaceRepository;
 
+    @Autowired
+    private LeaseRepository leaseRepository;
+
+    // ✅ ADDED: User Repository
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private HttpServletRequest request;
+
     private final AuditLogService auditLogService;
 
+    // ✅ ADDED: Method to get tenant name by ID
+    private String getTenantNameById(UUID tenantId) {
+        if (tenantId == null) {
+            return null;
+        }
+        try {
+            Optional<User> tenant = userRepository.findById(tenantId);
+            return tenant.map(User::getFullName).orElse("Unknown Tenant");
+        } catch (Exception e) {
+            System.err.println("Error fetching tenant name for ID: " + tenantId + " - " + e.getMessage());
+            return "Unknown Tenant";
+        }
+    }
+
+    // ✅ ADDED: Method to get tenant email by ID
+    private String getTenantEmailById(UUID tenantId) {
+        if (tenantId == null) {
+            return null;
+        }
+        try {
+            Optional<User> tenant = userRepository.findById(tenantId);
+            return tenant.map(User::getEmail).orElse(null);
+        } catch (Exception e) {
+            System.err.println("Error fetching tenant email for ID: " + tenantId + " - " + e.getMessage());
+            return null;
+        }
+    }
+
+    // ✅ UPDATED: Convert to DTO with tenant information
     private UtilityResponseDTO convertToDTO(Utility utility) {
         UtilityResponseDTO dto = new UtilityResponseDTO();
         dto.setUtilityId(utility.getUtilityId());
         dto.setSpaceId(utility.getSpace().getSpaceId());
         dto.setSpaceCode(utility.getSpace().getSpaceCode());
         dto.setSpaceLocation(utility.getSpace().getLocation());
+
+        // ✅ ADDED: Tenant information
+        dto.setTenantId(utility.getTenantId());
+        if (utility.getTenantId() != null) {
+            dto.setTenantName(getTenantNameById(utility.getTenantId()));
+            dto.setTenantEmail(getTenantEmailById(utility.getTenantId()));
+        }
+
         dto.setUtilityType(utility.getUtilityType());
         dto.setDescription(utility.getDescription());
         dto.setAmount(utility.getAmount());
@@ -61,8 +112,9 @@ public class UtilityServiceImpl implements UtilityService {
     @Override
     @Transactional
     public UtilityResponseDTO createUtility(UtilityRequestDTO utilityRequestDTO) {
-        // ✅ SET: User context before operation
-        String currentUser = getCurrentUserWithMultipleStrategies();
+        String currentUser = getCurrentUserWithEnhancedStrategies();
+        System.out.println("=== UTILITY CREATE ===");
+        System.out.println("Detected User: " + currentUser);
         AuditLogService.setMaintenanceOperationUser(currentUser, currentUser);
 
         try {
@@ -71,6 +123,11 @@ public class UtilityServiceImpl implements UtilityService {
 
             Utility utility = new Utility();
             utility.setSpace(space);
+
+            // ✅ AUTO-ASSIGN TENANT: Find tenant from active lease
+            UUID tenantId = findTenantIdForSpace(utilityRequestDTO.getSpaceId());
+            utility.setTenantId(tenantId);
+
             utility.setUtilityType(utilityRequestDTO.getUtilityType());
             utility.setDescription(utilityRequestDTO.getDescription());
             utility.setDueDate(utilityRequestDTO.getDueDate());
@@ -88,6 +145,8 @@ public class UtilityServiceImpl implements UtilityService {
             newData.put("utilityId", savedUtility.getUtilityId());
             newData.put("spaceId", savedUtility.getSpace().getSpaceId().toString());
             newData.put("spaceCode", savedUtility.getSpace().getSpaceCode());
+            newData.put("tenantId", savedUtility.getTenantId() != null ? savedUtility.getTenantId().toString() : "No Tenant");
+            newData.put("tenantName", getTenantNameById(savedUtility.getTenantId()));
             newData.put("utilityType", savedUtility.getUtilityType());
             newData.put("amount", savedUtility.getAmount());
             newData.put("dueDate", savedUtility.getDueDate());
@@ -99,8 +158,25 @@ public class UtilityServiceImpl implements UtilityService {
 
             return convertToDTO(savedUtility);
         } finally {
-            // ✅ CLEAR: User context after operation
             AuditLogService.clearMaintenanceOperationUser();
+        }
+    }
+
+    // ✅ ADDED: Method to find tenant ID for space
+    private UUID findTenantIdForSpace(UUID spaceId) {
+        try {
+            Optional<UUID> tenantIdOpt = leaseRepository.findTenantIdBySpaceId(spaceId);
+            if (tenantIdOpt.isPresent()) {
+                UUID tenantId = tenantIdOpt.get();
+                System.out.println("✅ Found tenant for space " + spaceId + ": " + tenantId);
+                return tenantId;
+            } else {
+                System.out.println("⚠️ No active lease found for space: " + spaceId);
+                return null;
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error finding tenant for space " + spaceId + ": " + e.getMessage());
+            return null;
         }
     }
 
@@ -127,11 +203,55 @@ public class UtilityServiceImpl implements UtilityService {
                 .collect(Collectors.toList());
     }
 
+    // ✅ ADDED: Get utilities by tenant ID
+    @Override
+    public List<UtilityResponseDTO> getUtilitiesByTenantId(UUID tenantId) {
+        try {
+            System.out.println("🔍 Getting utilities for tenant ID: " + tenantId);
+
+            // Get all utilities and filter by tenant ID
+            List<Utility> allUtilities = utilityRepository.findAll();
+            List<Utility> tenantUtilities = allUtilities.stream()
+                    .filter(utility -> utility.getTenantId() != null && utility.getTenantId().equals(tenantId))
+                    .collect(Collectors.toList());
+
+            System.out.println("✅ Found " + tenantUtilities.size() + " utilities for tenant: " + tenantId);
+            return tenantUtilities.stream()
+                    .map(this::convertToDTO)
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            System.err.println("❌ Error getting utilities for tenant " + tenantId + ": " + e.getMessage());
+            e.printStackTrace();
+            return List.of();
+        }
+    }
+
+    // ✅ ADDED: Get total pending amount by tenant ID
+    @Override
+    public BigDecimal getTotalPendingAmountByTenantId(UUID tenantId) {
+        try {
+            List<UtilityResponseDTO> tenantUtilities = getUtilitiesByTenantId(tenantId);
+            BigDecimal total = tenantUtilities.stream()
+                    .filter(utility -> utility.getAmount() != null)
+                    .map(UtilityResponseDTO::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            System.out.println("✅ Total pending amount for tenant " + tenantId + ": " + total);
+            return total;
+
+        } catch (Exception e) {
+            System.err.println("❌ Error calculating total pending amount for tenant " + tenantId + ": " + e.getMessage());
+            return BigDecimal.ZERO;
+        }
+    }
+
     @Override
     @Transactional
     public UtilityResponseDTO updateUtility(Long id, UtilityUpdateRequestDTO utilityUpdateRequestDTO) {
-        // ✅ SET: User context before operation
-        String currentUser = getCurrentUserWithMultipleStrategies();
+        String currentUser = getCurrentUserWithEnhancedStrategies();
+        System.out.println("=== UTILITY UPDATE ===");
+        System.out.println("Detected User: " + currentUser);
         AuditLogService.setMaintenanceOperationUser(currentUser, currentUser);
 
         try {
@@ -148,6 +268,8 @@ public class UtilityServiceImpl implements UtilityService {
             oldData.put("previousReading", existingUtility.getPreviousReading());
             oldData.put("currentReading", existingUtility.getCurrentReading());
             oldData.put("usageAmount", existingUtility.getUsageAmount());
+            oldData.put("tenantId", existingUtility.getTenantId());
+            oldData.put("tenantName", getTenantNameById(existingUtility.getTenantId()));
 
             boolean readingsUpdated = false;
 
@@ -195,12 +317,13 @@ public class UtilityServiceImpl implements UtilityService {
             newData.put("previousReading", updatedUtility.getPreviousReading());
             newData.put("currentReading", updatedUtility.getCurrentReading());
             newData.put("usageAmount", updatedUtility.getUsageAmount());
+            newData.put("tenantId", updatedUtility.getTenantId());
+            newData.put("tenantName", getTenantNameById(updatedUtility.getTenantId()));
 
             auditLogService.logUpdate("Utility", id.toString(), oldData, newData);
 
             return convertToDTO(updatedUtility);
         } finally {
-            // ✅ CLEAR: User context after operation
             AuditLogService.clearMaintenanceOperationUser();
         }
     }
@@ -208,8 +331,9 @@ public class UtilityServiceImpl implements UtilityService {
     @Override
     @Transactional
     public boolean deleteUtility(Long id) {
-        // ✅ SET: User context before operation
-        String currentUser = getCurrentUserWithMultipleStrategies();
+        String currentUser = getCurrentUserWithEnhancedStrategies();
+        System.out.println("=== UTILITY DELETE ===");
+        System.out.println("Detected User: " + currentUser);
         AuditLogService.setMaintenanceOperationUser(currentUser, currentUser);
 
         try {
@@ -222,6 +346,8 @@ public class UtilityServiceImpl implements UtilityService {
                 oldData.put("utilityId", utility.getUtilityId());
                 oldData.put("spaceId", utility.getSpace().getSpaceId().toString());
                 oldData.put("spaceCode", utility.getSpace().getSpaceCode());
+                oldData.put("tenantId", utility.getTenantId() != null ? utility.getTenantId().toString() : "No Tenant");
+                oldData.put("tenantName", getTenantNameById(utility.getTenantId()));
                 oldData.put("utilityType", utility.getUtilityType());
                 oldData.put("amount", utility.getAmount());
                 oldData.put("dueDate", utility.getDueDate());
@@ -243,7 +369,6 @@ public class UtilityServiceImpl implements UtilityService {
             }
             return false;
         } finally {
-            // ✅ CLEAR: User context after operation
             AuditLogService.clearMaintenanceOperationUser();
         }
     }
@@ -251,8 +376,9 @@ public class UtilityServiceImpl implements UtilityService {
     @Override
     @Transactional
     public boolean markAsPaid(Long utilityId) {
-        // ✅ SET: User context before operation
-        String currentUser = getCurrentUserWithMultipleStrategies();
+        String currentUser = getCurrentUserWithEnhancedStrategies();
+        System.out.println("=== UTILITY MARK AS PAID ===");
+        System.out.println("Detected User: " + currentUser);
         AuditLogService.setMaintenanceOperationUser(currentUser, currentUser);
 
         try {
@@ -265,6 +391,8 @@ public class UtilityServiceImpl implements UtilityService {
             details.put("utilityType", utility.getUtilityType());
             details.put("amount", utility.getAmount());
             details.put("spaceCode", utility.getSpace().getSpaceCode());
+            details.put("tenantId", utility.getTenantId() != null ? utility.getTenantId().toString() : "No Tenant");
+            details.put("tenantName", getTenantNameById(utility.getTenantId()));
 
             auditLogService.logAction(
                     "UTILITY_MARKED_PAID",
@@ -276,7 +404,6 @@ public class UtilityServiceImpl implements UtilityService {
 
             return true;
         } finally {
-            // ✅ CLEAR: User context after operation
             AuditLogService.clearMaintenanceOperationUser();
         }
     }
@@ -300,73 +427,96 @@ public class UtilityServiceImpl implements UtilityService {
                 .collect(Collectors.toList());
     }
 
-    // ✅ ADD: User context methods (copy from BranchServiceImpl)
-    private String getCurrentUserWithMultipleStrategies() {
-        // Strategy 1: Try Security Context first
-        String userFromSecurity = getCurrentUserFromSecurityContext();
-        if (!"System".equals(userFromSecurity)) {
-            return userFromSecurity;
+    // User detection methods (keep existing)
+    private String getCurrentUserWithEnhancedStrategies() {
+        System.out.println("=== ENHANCED USER DETECTION ===");
+
+        // Strategy 1: Check ThreadLocal first (for maintenance operations)
+        String threadLocalUser = getCurrentUserFromThreadLocal();
+        System.out.println("ThreadLocal User: " + threadLocalUser);
+
+        if (threadLocalUser != null && !threadLocalUser.trim().isEmpty() && !"System".equals(threadLocalUser)) {
+            return threadLocalUser;
         }
 
-        // Strategy 2: Try JWT Token from Authorization header
-        String userFromJwt = getCurrentUserFromJwtToken();
-        if (!"System".equals(userFromJwt)) {
-            return userFromJwt;
+        // Strategy 2: Check HTTP Headers from frontend
+        String headerUser = getCurrentUserFromHeaders();
+        System.out.println("Header User: " + headerUser);
+
+        if (headerUser != null && !headerUser.trim().isEmpty() && !"System".equals(headerUser)) {
+            return headerUser;
         }
 
-        // Strategy 3: Last resort - check if there's a test header
-        String userFromHeader = getCurrentUserFromCustomHeader();
-        if (!"System".equals(userFromHeader)) {
-            return userFromHeader;
+        // Strategy 3: Security Context
+        String securityUser = getCurrentUserFromSecurityContext();
+        System.out.println("Security Context User: " + securityUser);
+
+        if (securityUser != null && !securityUser.trim().isEmpty() && !"System".equals(securityUser)) {
+            return securityUser;
         }
 
+        System.out.println("⚠️ No user detected, defaulting to System");
         return "System";
+    }
+
+    private String getCurrentUserFromThreadLocal() {
+        try {
+            String threadLocalUser = AuditLogService.getCurrentUserFromThreadLocal();
+            System.out.println("ThreadLocal detection - User: " + threadLocalUser);
+
+            if (threadLocalUser != null && !threadLocalUser.trim().isEmpty() && !"System".equals(threadLocalUser)) {
+                return threadLocalUser;
+            }
+        } catch (Exception e) {
+            System.err.println("Error in ThreadLocal strategy: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private String getCurrentUserFromHeaders() {
+        try {
+            if (request != null) {
+                // Check for the custom headers sent by frontend
+                String userContext = request.getHeader("X-User-Context");
+                String userEmail = request.getHeader("X-User-Email");
+
+                System.out.println("Header - X-User-Context: " + userContext);
+                System.out.println("Header - X-User-Email: " + userEmail);
+
+                if (userContext != null && !userContext.trim().isEmpty() && !"System".equals(userContext)) {
+                    return userContext;
+                }
+
+                if (userEmail != null && !userEmail.trim().isEmpty() && !"System".equals(userEmail)) {
+                    return userEmail;
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error in header strategy: " + e.getMessage());
+        }
+        return null;
     }
 
     private String getCurrentUserFromSecurityContext() {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            System.out.println("Security Context - Authentication: " + authentication);
+
             if (authentication != null && authentication.isAuthenticated()) {
                 Object principal = authentication.getPrincipal();
-                return extractUsernameFromPrincipal(principal);
+                System.out.println("Security Context - Principal: " + principal);
+
+                String username = extractUsernameFromPrincipal(principal);
+                System.out.println("Security Context - Extracted Username: " + username);
+
+                if (isValidUsername(username)) {
+                    return username;
+                }
             }
         } catch (Exception e) {
             System.err.println("Error in Security Context strategy: " + e.getMessage());
         }
         return "System";
-    }
-
-    private String getCurrentUserFromJwtToken() {
-        // Implement based on your JWT token provider
-        // This is a simplified version - adjust based on your actual implementation
-        try {
-            String token = extractTokenFromRequest();
-            if (token != null && !token.trim().isEmpty()) {
-                // Use your token provider to extract user info
-                // This is a placeholder - replace with your actual implementation
-                return "UserFromJWT"; // Replace with actual user extraction
-            }
-        } catch (Exception e) {
-            System.err.println("JWT Strategy Error: " + e.getMessage());
-        }
-        return "System";
-    }
-
-    private String getCurrentUserFromCustomHeader() {
-        try {
-            // Implement based on your HttpServletRequest
-            // This is a placeholder - replace with your actual implementation
-            return "System";
-        } catch (Exception e) {
-            System.err.println("Error in custom header strategy: " + e.getMessage());
-        }
-        return "System";
-    }
-
-    private String extractTokenFromRequest() {
-        // Implement token extraction from HttpServletRequest
-        // This is a placeholder
-        return null;
     }
 
     private String extractUsernameFromPrincipal(Object principal) {
@@ -376,5 +526,13 @@ public class UtilityServiceImpl implements UtilityService {
             return (String) principal;
         }
         return null;
+    }
+
+    private boolean isValidUsername(String username) {
+        return username != null &&
+                !username.trim().isEmpty() &&
+                !"anonymousUser".equals(username) &&
+                !"system".equalsIgnoreCase(username) &&
+                !"null".equalsIgnoreCase(username);
     }
 }

@@ -65,6 +65,9 @@ public class LeaseServiceImpl implements LeaseService {
         lease.setAddress(leaseRequest.getAddress());
         lease.setHeir(leaseRequest.getHeir());
 
+        //new column
+        lease.setContactPhone(leaseRequest.getContactPhone());
+
         // Set status
         if (leaseRequest.getStatus() != null && !leaseRequest.getStatus().isEmpty()) {
             try {
@@ -167,6 +170,11 @@ public class LeaseServiceImpl implements LeaseService {
         }
         if (leaseRequest.getHeir() != null) {
             existingLease.setHeir(leaseRequest.getHeir());
+        }
+
+        //new column
+        if (leaseRequest.getContactPhone() != null) {
+            existingLease.setContactPhone(leaseRequest.getContactPhone());
         }
 
         // Update status
@@ -335,6 +343,7 @@ public class LeaseServiceImpl implements LeaseService {
         auditData.put("nrc", lease.getNrc());
         auditData.put("address", lease.getAddress());
         auditData.put("heir", lease.getHeir());
+        auditData.put("contactPhone", lease.getContactPhone()); // new column
         auditData.put("contractDocUrl", lease.getContractDocUrl());
 
         // Add descriptive name for audit log display
@@ -367,6 +376,9 @@ public class LeaseServiceImpl implements LeaseService {
         target.setNrc(source.getNrc());
         target.setAddress(source.getAddress());
         target.setHeir(source.getHeir());
+
+        target.setContactPhone(source.getContactPhone());//new column
+
         target.setContractDocUrl(source.getContractDocUrl());
         target.setCreatedAt(source.getCreatedAt());
         target.setUpdatedAt(source.getUpdatedAt());

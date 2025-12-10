@@ -1,6 +1,8 @@
 package com.sein_gar_har.Services;
 
+import com.sein_gar_har.dto.request.ChangePasswordRequest;
 import com.sein_gar_har.dto.request.UpdateUserRequestDTO;
+import com.sein_gar_har.dto.response.ChangePasswordResponse;
 import com.sein_gar_har.dto.response.UserResponseDTO;
 import com.sein_gar_har.entity.User;
 import com.sein_gar_har.exception.UserException;
@@ -45,4 +47,6 @@ public interface UserService {
     User toggleUserStatus(UUID id, boolean enabled) throws UserException;
 
     List<User> findByRole(String role);
+
+    public ChangePasswordResponse changePassword(ChangePasswordRequest request);
 }

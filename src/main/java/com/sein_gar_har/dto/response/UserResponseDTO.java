@@ -10,6 +10,7 @@ public class UserResponseDTO {
     private String fullName;
     private String email;
     private boolean enabled;
+    private String avatarUrl;
     private Set<String> roles;
     private Set<BranchResponseDTO> branches;
 }

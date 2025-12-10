@@ -1,20 +1,28 @@
 package com.sein_gar_har.Services.implementation;
 
+import com.google.api.pathtemplate.ValidationException;
 import com.sein_gar_har.RepositoryMain.UserRepository;
+import com.sein_gar_har.Services.PasswordEncryptionService;
+import com.sein_gar_har.Services.PasswordValidationService;
 import com.sein_gar_har.Services.UserService;
 import com.sein_gar_har.config.JwtConstants;
 import com.sein_gar_har.config.TokenProvider;
+import com.sein_gar_har.dto.request.ChangePasswordRequest;
 import com.sein_gar_har.dto.request.UpdateUserRequestDTO;
 import com.sein_gar_har.dto.response.BranchResponseDTO;
+import com.sein_gar_har.dto.response.ChangePasswordResponse;
+import com.sein_gar_har.dto.response.PasswordValidationResult;
 import com.sein_gar_har.dto.response.UserResponseDTO;
 import com.sein_gar_har.entity.Branch;
 import com.sein_gar_har.entity.User;
+import com.sein_gar_har.exception.ResourceNotFoundException;
 import com.sein_gar_har.exception.UserException;
 import com.sein_gar_har.Services.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +39,9 @@ public class UserServiceImpl implements UserService {
 
     private final TokenProvider tokenProvider;
     private final AuditLogService auditLogService;
+    private final PasswordEncoder passwordEncoder;
+    private final PasswordValidationService passwordValidationService;
+    private final PasswordEncryptionService passwordEncryptionService;
 
     @Override
     public User findUserById(UUID id) throws UserException {
@@ -280,5 +291,97 @@ public class UserServiceImpl implements UserService {
         branchResponseDTO.setCreatedAt(branch.getCreatedAt());
         branchResponseDTO.setUpdatedAt(branch.getUpdatedAt());
         return branchResponseDTO;
+    }
+
+    @Override
+    @Transactional
+    public ChangePasswordResponse changePassword(ChangePasswordRequest request) {
+        UUID userId = request.getUserId();
+
+        try {
+
+            // Validate request
+            validateChangePasswordRequest(request);
+
+            // Get user
+            User user = findUserById(userId);
+
+            // Decrypt passwords if encrypted
+            String currentPassword = decryptPassword(request.getCurrentPassword(), request.getEncryption());
+            String newPassword = decryptPassword(request.getNewPassword(), request.getEncryption());
+
+            // Verify current password
+            if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+
+                return ChangePasswordResponse.error("Current password is incorrect");
+            }
+
+            // Validate new password
+            PasswordValidationResult validation = passwordValidationService
+                    .validatePasswordChange(new ChangePasswordRequest(
+                            userId,
+                            currentPassword,
+                            newPassword,
+                            request.getEncryption()
+                    ));
+
+            if (!validation.isValid()) {
+
+                return ChangePasswordResponse.error(validation.getMessage());
+            }
+
+            // Update password
+            String encodedNewPassword = passwordEncoder.encode(newPassword);
+            user.setPassword(encodedNewPassword);
+            userRepository.save(user);
+
+            return ChangePasswordResponse.success("Password changed successfully");
+
+        } catch (ResourceNotFoundException e) {
+            return ChangePasswordResponse.error("User not found");
+        } catch (ValidationException e) {
+            return ChangePasswordResponse.error(e.getMessage());
+        } catch (Exception e) {
+            return ChangePasswordResponse.error("Failed to change password. Please try again.");
+        }
+    }
+
+    private void validateChangePasswordRequest(ChangePasswordRequest request) {
+        if (request.getUserId() == null) {
+            throw new ValidationException("User ID is required");
+        }
+
+        if (request.getCurrentPassword() == null || request.getCurrentPassword().trim().isEmpty()) {
+            throw new ValidationException("Current password is required");
+        }
+
+        if (request.getNewPassword() == null || request.getNewPassword().trim().isEmpty()) {
+            throw new ValidationException("New password is required");
+        }
+
+        // Validate encryption if provided
+        if (request.getEncryption() != null) {
+            if (!passwordEncryptionService.verifyEncryption(
+                    request.getCurrentPassword(),
+                    request.getEncryption().getMethod())) {
+                throw new ValidationException("Invalid encrypted data");
+            }
+        }
+    }
+
+    private String decryptPassword(String encryptedPassword,
+                                   ChangePasswordRequest.EncryptionMetadata encryption) {
+        // If no encryption metadata, assume plain text
+        if (encryption == null || encryption.getMethod() == null) {
+            return encryptedPassword;
+        }
+
+        if ("AES-256-CBC".equals(encryption.getMethod()) || "AES".equals(encryption.getMethod())) {
+            if (encryption.getIv() == null) {
+                throw new ValidationException("IV is required for AES decryption");
+            }
+            return passwordEncryptionService.decryptAES(encryptedPassword, encryption.getIv());
+        }
+        return encryptedPassword;
     }
 }

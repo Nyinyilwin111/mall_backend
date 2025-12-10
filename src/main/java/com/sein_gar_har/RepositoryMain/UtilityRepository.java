@@ -17,6 +17,10 @@ public interface UtilityRepository extends JpaRepository<Utility, Long> {
     @Query("SELECT u FROM Utility u WHERE u.space.spaceId = :spaceId AND u.recordStatus = 'ACTIVE'")
     List<Utility> findAllBySpaceId(@Param("spaceId") UUID spaceId);
 
+    // ✅ ADDED: Find utilities by tenant ID
+    @Query("SELECT u FROM Utility u WHERE u.tenantId = :tenantId AND u.recordStatus = 'ACTIVE'")
+    List<Utility> findAllByTenantId(@Param("tenantId") UUID tenantId);
+
     // Find utilities by due date range (active only)
     @Query("SELECT u FROM Utility u WHERE u.dueDate BETWEEN :startDate AND :endDate AND u.recordStatus = 'ACTIVE'")
     List<Utility> findAllByDueDateBetween(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);

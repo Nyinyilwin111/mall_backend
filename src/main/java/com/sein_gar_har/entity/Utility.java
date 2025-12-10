@@ -7,6 +7,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Getter
@@ -23,8 +24,12 @@ public class Utility {
     @JoinColumn(name = "space_id", nullable = false)
     private Space space;
 
+    // ✅ ADDED: Tenant ID field
+    @Column(name = "tenant_id")
+    private UUID tenantId;
+
     @Column(name = "utility_type", nullable = false, length = 50)
-    private String utilityType; // ELECTRICITY, WATER, INTERNET, MAINTENANCE_FEE, etc.
+    private String utilityType;
 
     @Column(name = "description")
     private String description;
@@ -33,10 +38,10 @@ public class Utility {
     private LocalDate dueDate;
 
     @Column(name = "billing_period")
-    private String billingPeriod; // "January 2024", "2024-01", etc.
+    private String billingPeriod;
 
     @Column(name = "usage_unit")
-    private String usageUnit; // kWh, m³, etc.
+    private String usageUnit;
 
     @Column(name = "previous_reading")
     private Double previousReading;
@@ -47,12 +52,11 @@ public class Utility {
     @Column(name = "usage_amount")
     private Double usageAmount;
 
-    // ADDED: Amount column
     @Column(name = "amount", precision = 12, scale = 2)
     private BigDecimal amount;
 
     @Column(name = "record_status", length = 20)
-    private String recordStatus = "ACTIVE"; // ACTIVE, CANCELLED
+    private String recordStatus = "ACTIVE";
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -60,7 +64,6 @@ public class Utility {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Constructors
     public Utility() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
@@ -71,7 +74,6 @@ public class Utility {
         this.updatedAt = LocalDateTime.now();
     }
 
-    // Method to calculate usage amount only
     public void calculateUsageAmount() {
         if (this.previousReading != null && this.currentReading != null) {
             this.usageAmount = this.currentReading - this.previousReading;
