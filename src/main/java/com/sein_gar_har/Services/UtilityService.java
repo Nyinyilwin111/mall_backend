@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 //// UtilityService.java
 //package com.sein_gar_har.Services;
 //
@@ -23,6 +24,8 @@
 //    List<UtilityResponseDTO> getPendingUtilitiesBySpaceId(UUID spaceId);
 //}
 
+=======
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
 package com.sein_gar_har.Services;
 
 import com.sein_gar_har.dto.request.UtilityRequestDTO;

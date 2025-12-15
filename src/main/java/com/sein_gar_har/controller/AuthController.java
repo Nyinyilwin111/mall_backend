@@ -127,55 +127,60 @@ public class AuthController {
     }
 
 
-@PostMapping("/signin")
-public ResponseEntity<LoginResponseDTO> login(@RequestBody LoginRequestDTO loginRequestDTO) {
+    @PostMapping("/signin")
+    public ResponseEntity<LoginResponseDTO> login(@RequestBody LoginRequestDTO loginRequestDTO) {
 
-    final String fullName = loginRequestDTO.fullName();
-    final String password = loginRequestDTO.password();
+        final String fullName = loginRequestDTO.fullName();
+        final String password = loginRequestDTO.password();
 
-    // Authenticate user
-    Authentication authentication = authenticateReq(fullName, password);
-    SecurityContextHolder.getContext().setAuthentication(authentication);
+        // Authenticate user
+        Authentication authentication = authenticateReq(fullName, password);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
 
-    // Fetch full User entity by fullName
-    User user = userService.findByUsername(fullName); // make sure this method exists
+        // Fetch full User entity by fullName
+        User user = userService.findByUsername(fullName); // make sure this method exists
 
-    // Generate JWT token
-    String jwt = tokenProvider.generateToken(authentication); // pass username/email depending on your JWT setup
+        // Generate JWT token
+        String jwt = tokenProvider.generateToken(authentication); // pass username/email depending on your JWT setup
 
-    // Build response
-    LoginResponseDTO loginResponseDTO = LoginResponseDTO.builder()
-            .id(user.getId())
-            .token(jwt)
-            .isAuthenticated(true)
-            .fullName(user.getFullName())
-            .email(user.getEmail())
-            .enabled(user.isEnabled())
-            .roles(
-                    user.getRoles().stream()
-                            .map(RoleResponseDTO::new)
-                            .collect(Collectors.toSet())
-            )
-            .branches(
-                    user.getBranches() != null
-                            ? user.getBranches().stream()
-                            .map(b -> new BranchResponseDTO(
-                                    b.getId(),
-                                    b.getName(),
-                                    b.getAddress(),
-                                    b.getPhoneNumber(),
-                                    b.getCreatedAt(),
-                                    b.getUpdatedAt()
-                            ))
-                            .collect(Collectors.toSet())
-                            : Set.of()
-            )
-            .build();
+        // Build response
+        LoginResponseDTO loginResponseDTO = LoginResponseDTO.builder()
+                .id(user.getId())
+                .token(jwt)
+                .isAuthenticated(true)
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .enabled(user.isEnabled())
+                .roles(
+                        user.getRoles().stream()
+                                .map(RoleResponseDTO::new)
+                                .collect(Collectors.toSet())
+                )
+                .branches(
+                        user.getBranches() != null
+                                ? user.getBranches().stream()
+                                .map(b -> new BranchResponseDTO(
+                                        b.getId(),
+                                        b.getName(),
+                                        b.getAddress(),
+                                        b.getPhoneNumber(),
+                                        b.getCreatedAt(),
+                                        b.getUpdatedAt()
+                                ))
+                                .collect(Collectors.toSet())
+                                : Set.of()
+                )
+                .build();
 
-    log.info("User {} successfully signed in", fullName);
+        log.info("User {} successfully signed in", fullName);
 
+<<<<<<< HEAD
     return new ResponseEntity<>(loginResponseDTO, HttpStatus.ACCEPTED);
 }
+=======
+        return new ResponseEntity<>(loginResponseDTO, HttpStatus.ACCEPTED);
+    }
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
     @PutMapping("/change-password")
     public ResponseEntity<ApiResponse<ChangePasswordResponse>> changePassword(
             @Valid @RequestBody ChangePasswordRequest request,

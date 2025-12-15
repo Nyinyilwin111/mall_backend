@@ -62,9 +62,21 @@ public class SecurityConfig {
                         .requestMatchers("/api/utilities/**").permitAll()
                         .requestMatchers("/api/payments/**").permitAll()
 
+<<<<<<< HEAD
                         // ✅ Push endpoints that require auth
                         .requestMatchers("/api/push/sendAll").authenticated()
                         .requestMatchers("/api/push/**").authenticated()
+=======
+                        // Explicitly allow ALL report endpoints
+                        .requestMatchers("/api/reports/**").permitAll()
+                        .requestMatchers("/api/reports/branches/**").permitAll()
+                        .requestMatchers("/api/reports/branchesIncome/**").permitAll()
+                        .requestMatchers("/api/reports/branches/health").permitAll()
+                        .requestMatchers("/api/reports/branches/list").permitAll()
+                        .requestMatchers("/api/reports/branches/analytics").permitAll()
+                        .requestMatchers("/api/reports/branches/*/detail").permitAll()
+                        .requestMatchers("/api/reports/branches/*/users").permitAll()
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
 
                         .anyRequest().authenticated()
                 )

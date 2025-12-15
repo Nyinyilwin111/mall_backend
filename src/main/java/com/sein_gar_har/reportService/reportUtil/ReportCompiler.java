@@ -76,6 +76,13 @@ public class ReportCompiler {
                 return "reports/spaces/space_floor_report.jrxml";
             case "branch_income_report":
                 return "reports/branches/BranchIncomeReport.jrxml";
+<<<<<<< HEAD
+=======
+            case "space_income_report":
+                return "reports/spaces/space_income_report.jrxml";
+            case "income_report":
+                return "reports/leases/income_report.jrxml";
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
             default:
                 throw new IllegalArgumentException("Unknown report: " + reportName);
         }

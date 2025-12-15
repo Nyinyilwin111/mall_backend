@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 //package com.sein_gar_har.reportService;
 //
 //import com.sein_gar_har.dto.report.SpaceReportDTO;
@@ -23,6 +24,8 @@
 
 
 
+=======
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
 package com.sein_gar_har.reportService;
 
 import com.sein_gar_har.dto.report.SpaceReportDTO;

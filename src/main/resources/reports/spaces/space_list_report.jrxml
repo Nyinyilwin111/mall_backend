@@ -16,7 +16,11 @@
 
     <!-- Parameters -->
     <parameter name="REPORT_TITLE" class="java.lang.String" isForPrompting="false">
+<<<<<<< HEAD
         <defaultValueExpression><![CDATA["SPACE MANAGEMENT REPORT"]]></defaultValueExpression>
+=======
+        <defaultValueExpression><![CDATA["UNIT MANAGEMENT REPORT"]]></defaultValueExpression>
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
     </parameter>
     <parameter name="COMPANY_NAME" class="java.lang.String" isForPrompting="false">
         <defaultValueExpression><![CDATA["Sein Gar Har Real Estate"]]></defaultValueExpression>
@@ -185,7 +189,11 @@ ORDER BY b.name, f.level, s.space_code
                 <textElement textAlignment="Right" verticalAlignment="Middle">
                     <font fontName="DejaVu Sans" size="8"/>
                 </textElement>
+<<<<<<< HEAD
                 <textFieldExpression><![CDATA["ID: " + $P{REPORT_ID}]]></textFieldExpression>
+=======
+                <textFieldExpression><![CDATA["REPORT ID: " + $P{REPORT_ID}]]></textFieldExpression>
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
             </textField>
         </band>
     </title>
@@ -207,7 +215,11 @@ ORDER BY b.name, f.level, s.space_code
                 <textElement verticalAlignment="Middle">
                     <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
+<<<<<<< HEAD
                 <text><![CDATA[Space Code]]></text>
+=======
+                <text><![CDATA[Unit Code]]></text>
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
             </staticText>
 
             <staticText>
@@ -405,7 +417,11 @@ ORDER BY b.name, f.level, s.space_code
                 <textElement verticalAlignment="Middle">
                     <font fontName="DejaVu Sans" size="10" isBold="true"/>
                 </textElement>
+<<<<<<< HEAD
                 <textFieldExpression><![CDATA["Total Spaces: " + $V{totalSpaces}]]></textFieldExpression>
+=======
+                <textFieldExpression><![CDATA["Total Units: " + $V{totalSpaces}]]></textFieldExpression>
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
             </textField>
 
             <textField evaluationTime="Report">

@@ -1,0 +1,535 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+              http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="SpaceIncomeReport"
+              pageWidth="842"
+              pageHeight="595"
+              orientation="Landscape"
+              columnWidth="802"
+              leftMargin="20"
+              rightMargin="20"
+              topMargin="20"
+              bottomMargin="20"
+              uuid="55093800-3e3e-406c-bcb4-0865490b911a">
+
+    <property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
+
+    <!-- Parameters -->
+    <parameter name="reportTitle" class="java.lang.String"/>
+    <parameter name="startDate" class="java.sql.Date"/>
+    <parameter name="endDate" class="java.sql.Date"/>
+    <parameter name="branchId" class="java.lang.Long"/>
+    <parameter name="periodType" class="java.lang.String"/>
+    <parameter name="spaceCode" class="java.lang.String"/>
+    <parameter name="generatedBy" class="java.lang.String"/>
+    <parameter name="generatedAt" class="java.lang.String"/>
+    <parameter name="companyName" class="java.lang.String" isForPrompting="false">
+        <defaultValueExpression><![CDATA["Sein Gay Har"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="COMPANY_LOGO" class="java.io.InputStream" isForPrompting="false"/>
+    <parameter name="REPORT_DATE" class="java.util.Date" isForPrompting="false">
+        <defaultValueExpression><![CDATA[new java.util.Date()]]></defaultValueExpression>
+    </parameter>
+    <queryString>
+        <![CDATA[
+SELECT
+    s.space_code,
+    st.type_name as space_type,
+    f.level as floor_level,
+    b.name as branch_name,
+    p.amount,
+    p.payment_date,
+    CASE
+        WHEN p.lease_id IS NOT NULL THEN 'LEASE'
+        WHEN p.utility_id IS NOT NULL THEN 'UTILITY'
+        ELSE 'OTHER'
+    END as payment_type,
+
+    -- CORRECTED: Get tenant name for BOTH lease AND utility payments
+    COALESCE(
+        -- For lease payments
+        (SELECT u.full_name FROM users u
+         JOIN lease l2 ON u.id = l2.tenant_user_id
+         WHERE l2.lease_id = p.lease_id),
+
+        -- For utility payments (using tenant_id in utility table)
+        (SELECT u.full_name FROM users u
+         WHERE u.id = ut.tenant_id),
+
+        -- Fallback to email for lease payments
+        (SELECT u.email FROM users u
+         JOIN lease l2 ON u.id = l2.tenant_user_id
+         WHERE l2.lease_id = p.lease_id),
+
+        -- Fallback to email for utility payments
+        (SELECT u.email FROM users u
+         WHERE u.id = ut.tenant_id),
+
+        'N/A'
+    ) as tenant_name,
+
+    p.status,
+    p.payment_id,
+    -- Utility type (if utility payment)
+    CASE
+        WHEN p.utility_id IS NOT NULL THEN 'UTILITY'
+        ELSE ''
+    END as utility_type
+FROM payment p
+-- Left join for lease payments
+LEFT JOIN lease l ON p.lease_id = l.lease_id
+
+-- Left join for utility payments (simple join) - THIS IS CRITICAL
+LEFT JOIN utility ut ON p.utility_id = ut.utility_id
+
+-- Common joins for space info
+LEFT JOIN space s ON (l.space_id = s.space_id OR ut.space_id = s.space_id)
+LEFT JOIN spacetype st ON s.space_type_id = st.space_type_id
+LEFT JOIN floor f ON s.Floor_floor_id = f.floor_id
+LEFT JOIN branches b ON f.branch_branch_id = b.id
+
+WHERE p.status IN ('PAID', 'VERIFIED')
+AND p.payment_date BETWEEN $P{startDate} AND $P{endDate}
+AND ($P{spaceCode} IS NULL OR s.space_code = $P{spaceCode})
+AND ($P{branchId} IS NULL OR b.id = $P{branchId})
+ORDER BY p.payment_date DESC, s.space_code
+]]>
+    </queryString>
+
+    <!-- Fields -->
+    <field name="space_code" class="java.lang.String"/>
+    <field name="space_type" class="java.lang.String"/>
+    <field name="floor_level" class="java.lang.String"/>
+    <field name="branch_name" class="java.lang.String"/>
+    <field name="amount" class="java.math.BigDecimal"/>
+    <field name="payment_date" class="java.sql.Date"/>
+    <field name="payment_type" class="java.lang.String"/>
+    <field name="tenant_name" class="java.lang.String"/>
+    <field name="status" class="java.lang.String"/>
+    <field name="payment_id" class="java.lang.Long"/>
+    <field name="utility_type" class="java.lang.String"/>
+
+    <!-- Variables -->
+    <variable name="totalAmount" class="java.math.BigDecimal" calculation="Sum">
+        <variableExpression><![CDATA[$F{amount}]]></variableExpression>
+    </variable>
+
+    <variable name="totalSpaces" class="java.lang.Integer" calculation="DistinctCount">
+        <variableExpression><![CDATA[$F{space_code}]]></variableExpression>
+    </variable>
+
+    <variable name="leasePayments" class="java.lang.Integer" calculation="Sum">
+        <variableExpression><![CDATA[$F{payment_type}.equals("LEASE") ? 1 : 0]]></variableExpression>
+    </variable>
+
+    <variable name="utilityPayments" class="java.lang.Integer" calculation="Sum">
+        <variableExpression><![CDATA[$F{payment_type}.equals("UTILITY") ? 1 : 0]]></variableExpression>
+    </variable>
+
+    <background>
+        <band splitType="Stretch"/>
+    </background>
+
+    <title>
+        <band height="130" splitType="Stretch">
+            <!-- Header Background -->
+            <rectangle radius="8">
+                <reportElement x="0" y="0" width="802" height="110" backcolor="#2C3E50" uuid="11111111-1111-1111-1111-111111111111"/>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#2C3E50"/>
+                </graphicElement>
+            </rectangle>
+
+            <!-- Logo -->
+            <image scaleImage="RetainShape" onErrorType="Blank">
+                <reportElement x="20" y="20" width="70" height="70" uuid="22222222-2222-2222-2222-222222222222"/>
+                <imageExpression><![CDATA["classpath:image/SGH-logo.png"]]></imageExpression>
+            </image>
+
+            <!-- Company Name -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="105" y="25" width="400" height="30" forecolor="#FFFFFF" uuid="33333333-3333-3333-3333-333333333333"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="18" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{companyName}]]></textFieldExpression>
+            </textField>
+
+            <!-- Report Title -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="105" y="55" width="400" height="25" forecolor="#ECF0F1" uuid="44444444-4444-4444-4444-444444444444"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="14" isBold="false"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Space Income Report - " + $P{periodType}]]></textFieldExpression>
+            </textField>
+
+            <!-- Date Range Badge -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="105" y="80" width="250" height="20" forecolor="#2C3E50" backcolor="#ECF0F1" uuid="55555555-5555-5555-5555-555555555555"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                    "Period: " +
+                    (($P{periodType} == "DAILY") ?
+                        new java.text.SimpleDateFormat("MMM dd, yyyy").format($P{startDate}) + " to " + new java.text.SimpleDateFormat("MMM dd, yyyy").format($P{endDate}) :
+                    ($P{periodType} == "MONTHLY") ?
+                        new java.text.SimpleDateFormat("MMMM yyyy").format($P{startDate}) + " to " + new java.text.SimpleDateFormat("MMMM yyyy").format($P{endDate}) :
+                        new java.text.SimpleDateFormat("yyyy").format($P{startDate}) + " to " + new java.text.SimpleDateFormat("yyyy").format($P{endDate}))
+                ]]></textFieldExpression>
+            </textField>
+
+            <!-- Date -->
+            <textField pattern="EEEE, MMMM dd, yyyy">
+                <reportElement x="540" y="25" width="249" height="20" forecolor="#ECF0F1" uuid="66666666-6666-6666-6666-666666666666"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{REPORT_DATE}]]></textFieldExpression>
+            </textField>
+
+            <!-- Generated by -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="540" y="50" width="249" height="18" forecolor="#BDC3C7" uuid="77777777-7777-7777-7777-777777777777"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Generated by: " + $P{generatedBy}]]></textFieldExpression>
+            </textField>
+
+            <!-- Space Filter Info -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="540" y="73" width="249" height="15" forecolor="#95A5A6" uuid="88888888-8888-8888-8888-888888888888"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                    ($P{spaceCode} == null ? "All Spaces" : "Space: " + $P{spaceCode}) +
+                    " | " +
+                    ($P{branchId} == null ? "All Branches" : "Branch ID: " + $P{branchId})
+                ]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <!-- Column Header and Detail bands remain the same... -->
+    <columnHeader>
+        <band height="40" splitType="Stretch">
+            <!-- Table Header Background -->
+            <rectangle radius="5">
+                <reportElement x="0" y="0" width="802" height="35" backcolor="#34495E" uuid="99999999-9999-9999-9999-999999999999"/>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#34495E"/>
+                </graphicElement>
+            </rectangle>
+
+            <!-- Column Headers -->
+            <staticText>
+                <reportElement x="10" y="8" width="80" height="20" forecolor="#FFFFFF" uuid="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Space Code]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="97" y="8" width="80" height="20" forecolor="#FFFFFF" uuid="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Date]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="184" y="8" width="80" height="20" forecolor="#FFFFFF" uuid="cccccccc-cccc-cccc-cccc-cccccccccccc"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Type]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="271" y="8" width="100" height="20" forecolor="#FFFFFF" uuid="dddddddd-dddd-dddd-dddd-dddddddddddd"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Tenant]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="378" y="8" width="80" height="20" forecolor="#FFFFFF" uuid="eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Space Type]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="465" y="8" width="80" height="20" forecolor="#FFFFFF" uuid="ffffffff-ffff-ffff-ffff-ffffffffffff"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Floor]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="552" y="8" width="80" height="20" forecolor="#FFFFFF" uuid="01234567-89ab-cdef-0123-456789abcdef"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Branch]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="639" y="8" width="100" height="20" forecolor="#FFFFFF" uuid="11234567-89ab-cdef-0123-456789abcdef"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Amount (MMK)]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="746" y="8" width="45" height="20" forecolor="#FFFFFF" uuid="21234567-89ab-cdef-0123-456789abcdef"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Status]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="45" splitType="Stretch">
+            <!-- Alternating row background -->
+            <rectangle>
+                <reportElement x="0" y="0" width="802" height="35" mode="Opaque" backcolor="#F8F9FA" uuid="12345678-1234-1234-1234-123456789abc">
+                    <printWhenExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></printWhenExpression>
+                </reportElement>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#F8F9FA"/>
+                </graphicElement>
+            </rectangle>
+
+            <!-- Space Code -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="10" y="8" width="80" height="20" uuid="23456789-2345-2345-2345-23456789abcd"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{space_code} != null ? $F{space_code} : "N/A"]]></textFieldExpression>
+            </textField>
+
+            <!-- Date -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="97" y="8" width="80" height="20" uuid="3456789a-3456-3456-3456-3456789abcde"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new java.text.SimpleDateFormat("MMM dd, yyyy").format($F{payment_date})]]></textFieldExpression>
+            </textField>
+
+            <!-- Payment Type -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="184" y="8" width="80" height="20" uuid="456789ab-4567-4567-4567-456789abcdef"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{payment_type}]]></textFieldExpression>
+            </textField>
+
+            <!-- Tenant Name -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="271" y="8" width="100" height="20" uuid="56789abc-5678-5678-5678-56789abcdef0"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{tenant_name}]]></textFieldExpression>
+            </textField>
+
+            <!-- Space Type -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="378" y="8" width="80" height="20" uuid="6789abcd-6789-6789-6789-6789abcdef01"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{space_type} != null ? $F{space_type} : "N/A"]]></textFieldExpression>
+            </textField>
+
+            <!-- Floor Level -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="465" y="8" width="80" height="20" uuid="789abcde-789a-789a-789a-789abcdef012"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Floor " + ($F{floor_level} != null ? $F{floor_level} : "N/A")]]></textFieldExpression>
+            </textField>
+
+            <!-- Branch Name -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="552" y="8" width="80" height="20" uuid="89abcdef-89ab-89ab-89ab-89abcdef0123"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{branch_name}]]></textFieldExpression>
+            </textField>
+
+            <!-- Amount - CHANGED FROM $ TO MMK -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="639" y="8" width="100" height="20" uuid="9abcdef0-9abc-9abc-9abc-9abcdef01234"/>
+                <textElement textAlignment="Left" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                    new java.text.DecimalFormat("#,##0").format($F{amount}) + " MMK"
+                ]]></textFieldExpression>
+            </textField>
+
+            <!-- Status Badge -->
+            <rectangle radius="10">
+                <reportElement x="746" y="8" width="45" height="20" mode="Opaque" backcolor="#27AE60" uuid="abcdef01-abcd-abcd-abcd-abcdef012345">
+                    <printWhenExpression><![CDATA[$F{status} != null]]></printWhenExpression>
+                </reportElement>
+                <graphicElement>
+                    <pen lineWidth="0.5" lineColor="#DEE2E6"/>
+                </graphicElement>
+            </rectangle>
+            <textField isBlankWhenNull="true">
+                <reportElement x="746" y="8" width="45" height="20" forecolor="#FFFFFF" uuid="bcdef012-bcde-bcde-bcde-bcdef0123456">
+                    <printWhenExpression><![CDATA[$F{status} != null]]></printWhenExpression>
+                </reportElement>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{status}]]></textFieldExpression>
+            </textField>
+
+            <!-- Bottom border -->
+            <line>
+                <reportElement x="0" y="34" width="802" height="1" uuid="cdef0123-cdef-cdef-cdef-cdef01234567"/>
+                <graphicElement>
+                    <pen lineWidth="0.5" lineColor="#E9ECEF"/>
+                </graphicElement>
+            </line>
+        </band>
+    </detail>
+
+    <columnFooter>
+        <band height="30" splitType="Stretch">
+            <line>
+                <reportElement x="0" y="0" width="802" height="1" uuid="def01234-def0-def0-def0-def012345678"/>
+                <graphicElement>
+                    <pen lineWidth="1.0" lineColor="#2C3E50"/>
+                </graphicElement>
+            </line>
+        </band>
+    </columnFooter>
+
+    <pageFooter>
+        <band height="50" splitType="Stretch">
+            <!-- Confidential watermark -->
+            <textField>
+                <reportElement x="0" y="0" width="802" height="15" forecolor="#D1D5DB" uuid="ef012345-ef01-ef01-ef01-ef0123456789"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA["CONFIDENTIAL - For Internal Use Only"]]></textFieldExpression>
+            </textField>
+
+            <!-- Page counter -->
+            <textField>
+                <reportElement x="0" y="20" width="401" height="20" uuid="f0123456-f012-f012-f012-f0123456789a"/>
+                <textElement textAlignment="Left">
+                    <font fontName="DejaVu Sans" size="9" isItalic="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Generated on " + new java.util.Date()]]></textFieldExpression>
+            </textField>
+
+            <!-- Page number -->
+            <textField evaluationTime="Report">
+                <reportElement x="401" y="20" width="401" height="20" uuid="01234567-0123-0123-0123-0123456789ab"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="9" isItalic="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " of " + $V{PAGE_COUNT}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <summary>
+        <band height="100" splitType="Stretch">
+            <!-- Summary Background -->
+            <rectangle radius="5">
+                <reportElement x="0" y="0" width="802" height="80" backcolor="#2C3E50" uuid="12345678-1234-1234-1234-123456789abc"/>
+                <graphicElement>
+                    <pen lineWidth="0.0" lineColor="#2C3E50"/>
+                </graphicElement>
+            </rectangle>
+
+            <!-- Total Payments -->
+            <textField evaluationTime="Report">
+                <reportElement x="20" y="10" width="200" height="20" forecolor="#FFFFFF" uuid="23456789-2345-2345-2345-23456789abcd"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Total Transactions: " + $V{REPORT_COUNT}]]></textFieldExpression>
+            </textField>
+
+            <!-- Total Amount - CHANGED FROM $ TO MMK -->
+            <textField evaluationTime="Report">
+                <reportElement x="20" y="30" width="300" height="20" forecolor="#FFFFFF" uuid="3456789a-3456-3456-3456-3456789abcde"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="12" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                    "Total Income: " +
+                    new java.text.DecimalFormat("#,##0").format($V{totalAmount}) +
+                    " MMK"
+                ]]></textFieldExpression>
+            </textField>
+
+            <!-- Total Spaces -->
+            <textField evaluationTime="Report">
+                <reportElement x="20" y="50" width="200" height="20" forecolor="#FFFFFF" uuid="456789ab-4567-4567-4567-456789abcdef"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Total Spaces: " + $V{totalSpaces}]]></textFieldExpression>
+            </textField>
+
+            <!-- Payment Type Breakdown -->
+            <textField evaluationTime="Report">
+                <reportElement x="350" y="10" width="250" height="20" forecolor="#BDC3C7" uuid="56789abc-5678-5678-5678-56789abcdef0"/>
+                <textElement verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Lease Payments: " + $V{leasePayments} + " | Utility Payments: " + $V{utilityPayments}]]></textFieldExpression>
+            </textField>
+
+            <!-- Report Generation Time -->
+            <textField pattern="HH:mm:ss">
+                <reportElement x="552" y="30" width="230" height="20" forecolor="#BDC3C7" uuid="6789abcd-6789-6789-6789-6789abcdef01"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+            </textField>
+
+            <!-- Filter Info -->
+            <textField isBlankWhenNull="true">
+                <reportElement x="552" y="50" width="230" height="20" forecolor="#95A5A6" uuid="789abcde-789a-789a-789a-789abcdef012"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA[
+                    ($P{spaceCode} == null ? "All Spaces" : "Space: " + $P{spaceCode}) +
+                    " | " +
+                    ($P{branchId} == null ? "All Branches" : "Branch ID: " + $P{branchId})
+                ]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+
+</jasperReport>

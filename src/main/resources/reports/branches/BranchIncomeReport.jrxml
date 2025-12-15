@@ -25,7 +25,11 @@
     <parameter name="generatedBy" class="java.lang.String"/>
     <parameter name="generatedAt" class="java.lang.String"/>
     <parameter name="COMPANY_NAME" class="java.lang.String" isForPrompting="false">
+<<<<<<< HEAD
         <defaultValueExpression><![CDATA["Sein Gar Har Real Estate"]]></defaultValueExpression>
+=======
+        <defaultValueExpression><![CDATA["SEIN GAY HAR"]]></defaultValueExpression>
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
     </parameter>
     <parameter name="COMPANY_LOGO" class="java.io.InputStream" isForPrompting="false"/>
     <parameter name="REPORT_DATE" class="java.util.Date" isForPrompting="false">

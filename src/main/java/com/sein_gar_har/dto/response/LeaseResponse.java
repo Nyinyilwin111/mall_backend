@@ -28,6 +28,9 @@ public class LeaseResponse {
     private String nrc;
     private String address;
     private String heir;
+    //new column
+    private String contactPhone;
+
 
     public LeaseResponse(Lease lease) {
         this.leaseId = lease.getLeaseId();
@@ -48,6 +51,8 @@ public class LeaseResponse {
         this.nrc = lease.getNrc();
         this.address = lease.getAddress();
         this.heir = lease.getHeir();
+        //new column
+        this.contactPhone=lease.getContactPhone();
     }
 
     // Default constructor for frameworks

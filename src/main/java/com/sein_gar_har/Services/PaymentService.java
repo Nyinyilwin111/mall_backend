@@ -2,6 +2,8 @@ package com.sein_gar_har.Services;
 
 import com.sein_gar_har.dto.request.PaymentRequest;
 import com.sein_gar_har.dto.response.PaymentResponse;
+import jakarta.servlet.http.HttpServletResponse;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -16,4 +18,5 @@ public interface PaymentService {
     List<PaymentResponse> getPaymentsByTenantId(UUID tenantId);
     List<PaymentResponse> getPaymentsBySpaceId(UUID spaceId);
     PaymentResponse updatePaymentStatus(Long paymentId, String status);
+
 }

@@ -23,8 +23,13 @@ public class SpaceReportController {
     @Autowired
     private SpaceReportService spaceReportService;
 
+<<<<<<< HEAD
      @Autowired
      private ReportCompiler reportCompiler;
+=======
+    @Autowired
+    private ReportCompiler reportCompiler;
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
 
     @RequestMapping(value = "/{spaceCode}/detail", method = RequestMethod.OPTIONS)
     public ResponseEntity<?> handlePreflight(@PathVariable String spaceCode) {

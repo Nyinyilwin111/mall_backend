@@ -45,5 +45,8 @@ public class LeaseRequest {
 
     private String heir;
 
+    //new column
+    private String contactPhone;
+
     private MultipartFile contractFile;
 }

@@ -15,6 +15,10 @@ public class UtilityResponseDTO {
     private String spaceCode;
     private String spaceLocation;
 
+<<<<<<< HEAD
+=======
+    // ✅ UPDATED: Include tenant information
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
     private UUID tenantId;
     private String tenantName;
     private String tenantEmail;

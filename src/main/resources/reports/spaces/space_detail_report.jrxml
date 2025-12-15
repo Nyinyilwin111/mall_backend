@@ -106,7 +106,11 @@
             <textField>
                 <reportElement x="0" y="85" width="555" height="15" forecolor="#7F8C8D"/>
                 <textElement textAlignment="Center"><font size="8" isItalic="true"/></textElement>
+<<<<<<< HEAD
                 <textFieldExpression><![CDATA["Page 1 of 2 - Space Details & Amenities"]]></textFieldExpression>
+=======
+                <textFieldExpression><![CDATA["Page 1 of 2 - Unit Details & Amenities"]]></textFieldExpression>
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
             </textField>
         </band>
     </title>
@@ -121,7 +125,11 @@
             <staticText>
                 <reportElement x="10" y="10" width="535" height="20" />
                 <textElement><font size="12" isBold="true"/></textElement>
+<<<<<<< HEAD
                 <text><![CDATA[Space Images]]></text>
+=======
+                <text><![CDATA[Unit Images]]></text>
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
             </staticText>
 
             <!-- Image 1 -->
@@ -168,7 +176,11 @@
             <staticText>
                 <reportElement x="10" y="170" width="535" height="30" forecolor="#2C3E50"/>
                 <textElement><font size="12" isBold="true"/></textElement>
+<<<<<<< HEAD
                 <text><![CDATA[Space Information]]></text>
+=======
+                <text><![CDATA[Unit Information]]></text>
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
             </staticText>
 
             <!-- Location -->

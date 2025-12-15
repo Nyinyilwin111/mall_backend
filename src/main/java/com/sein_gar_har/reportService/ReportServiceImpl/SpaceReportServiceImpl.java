@@ -87,7 +87,11 @@ public class SpaceReportServiceImpl implements SpaceReportService {
 
             // Add parameters
             addPremiumParameters(parameters);
+<<<<<<< HEAD
             parameters.put("REPORT_TITLE", "SPACE DETAIL REPORT");
+=======
+            parameters.put("REPORT_TITLE", "UNIT DETAIL REPORT");
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
             parameters.put("spaceCode", spaceCode);
             parameters.put("HAS_IMAGES", spaceDetail.getImageUrls() != null && !spaceDetail.getImageUrls().isEmpty());
             parameters.put("TOTAL_IMAGES", spaceDetail.getImageCount());
@@ -787,7 +791,11 @@ public class SpaceReportServiceImpl implements SpaceReportService {
 
             // Add premium parameters
             addPremiumParameters(jasperParams);
+<<<<<<< HEAD
             jasperParams.put("REPORT_TITLE", "SPACE LIST REPORT");
+=======
+            jasperParams.put("REPORT_TITLE", "UNIT LIST REPORT");
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
 
             // Load logo
             logoStream = loadLogoWithMultipleMethods();

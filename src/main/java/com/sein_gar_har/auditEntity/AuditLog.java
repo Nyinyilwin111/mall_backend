@@ -73,7 +73,10 @@ public class AuditLog {
         return "UNKNOWN";
     }
 
+<<<<<<< HEAD
     // New helper methods for report templates
+=======
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
     public String getExtractedEmail() {
         if (newValues != null && newValues.contains("\"email\":")) {
             return newValues.replaceAll(".*\"email\":\"([^\"]+)\".*", "$1");

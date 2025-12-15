@@ -63,6 +63,9 @@ public class Lease {
     @Column(name = "heir", length = 100)
     private String heir;
 
+    @Column(name = "contact_phone", length = 20)  //new column
+    private String contactPhone;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

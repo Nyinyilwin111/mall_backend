@@ -17,7 +17,10 @@ public class BranchReportController {
     @Autowired
     private BranchReportService branchReportService;
 
+<<<<<<< HEAD
     // ✅ Health check endpoint
+=======
+>>>>>>> 7849d7fed339778c291f082b6b5ba33d53d04c80
     @GetMapping("/health")
     public ResponseEntity<String> healthCheck() {
         log.info("🔵 Health check for branch reports");
